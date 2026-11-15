@@ -2,5 +2,14 @@
 node_modules/
 package-lock.json
 
+# 隔离验收 home，含一次性凭据，不进入仓库或发布包
+test-env/
+
+# 验收截图与浏览器 profile（含 Cookie/登录态），不进入仓库或发布包
+output/
+
 # 仅供本地协作交接，不进入公开仓库或发布包
 HANDOFF.md
+AGENT_HANDOFF.md
+tasks/
+cross-agent-review-files/

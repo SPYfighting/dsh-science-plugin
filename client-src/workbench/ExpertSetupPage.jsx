@@ -56,12 +56,13 @@ export function ExpertSetupPage({ view, refresh }) {
     finally { setBusy(null) }
   }
   return <div className="sci-stack">
-    <Panel title="专家能力" subtitle="内置能力可直接使用；工具候选需要先在当前环境安装并验证，不代表已集成。">
+    <Panel title="专家能力" subtitle="本表是环境工具候选说明（只读）：运行依赖与本机版本需按工具官方文档安装后自行核对——本插件不探测安装状态，也不把「说明存在」当作「已安装」。可安装的技能增强见下方「可选技能增强」。">
       <div className="sci-expert-grid">{roles.map((role) => {
         const info = ROLE_INFO[role]
         const member = view.experts.roles?.[role]
         const installedCount = (installed[role] || []).length
-        return <article className="sci-expert-card" key={role}><div className="sci-result-top"><div><h3>{member?.label || info.title}</h3><p>{info.purpose}</p></div><Badge>{installedCount} 项扩展已安装</Badge></div><div className="sci-tool-list" aria-label={`${info.title}环境工具候选`}>{info.tools.map((item) => <div className="sci-tool-row" key={item.name}><b>{item.name}</b><span>类别：{item.category}</span><span>环境/依赖：{item.environment}</span><span>状态/版本：{item.status}</span></div>)}</div></article>
+        return <article className="sci-expert-card" key={role}><div className="sci-result-top"><div><h3>{member?.label || info.title}</h3><p>{info.purpose}</p></div><Badge>{installedCount > 0 ? `${installedCount} 项扩展已安装` : '无扩展'}</Badge></div>
+          <div className="sci-tool-list" aria-label={`${info.title}环境工具候选`}>{info.tools.map((item) => <div className="sci-tool-row" key={item.name}><b>{item.name}</b><span>类别：{item.category}</span></div>)}</div></article>
       })}</div>
     </Panel>
     <Panel title="可选技能增强" subtitle="技能只提供操作说明。运行依赖、模型权重、外部 API 和数据许可仍需单独核对。">

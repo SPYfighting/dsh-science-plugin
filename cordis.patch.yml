@@ -3,3 +3,10 @@
       name: dsh-science
     - id: dsh-science-team-ui
       name: '@deepseek-ai/dsh-experimental-client-ui-agent-team'
+    # 确认卡（Action Cards）：Host 负责 proposal/decision 与 kind 注册；Client 负责在对话回答
+    # 下方渲染卡片。两者必须同时加载（官方 @deepseek-ai/dsh-personalized-recommendations
+    # bundle 同样成对声明）。当前 DSH 运行时 0.2.2-rc.3 同时提供这两个包。
+    - id: dsh-science-action-cards
+      name: '@deepseek-ai/dsh-action-cards'
+    - id: dsh-science-client-ui-action-cards
+      name: '@deepseek-ai/dsh-client-ui-action-cards'

@@ -27,3 +27,11 @@ description: 提出科研假设与研究课题思路。用户要 idea/课题/假
 
 - 假设必须可证伪；检验路径必须映射到本会话可执行的工具链，否则标注"需要新数据/新算力"。
 - 所有文献断言经 `web_search` / `web_fetch` 检索并由 `sci_doi_verify` 核对，禁止凭记忆编造研究现状。
+
+## 确认卡（sci-paper-confirm）
+
+需要用户确认核心主张或 Result 时，不要自行替用户确认：
+
+1. 先调用 `sci_blueprint_overview`，取项目的 `revision`、目标对象的 `revision` 与 `contentHash`。
+2. 调用 `propose_action`（action=`sci-paper-confirm`），details 填 `projectId`、`objectId`、`objectRevision`、`projectRevision`、`expectedHash`、`title`、`summary`。
+3. 卡片只绑定用户提案时看到的那次对象修订与内容哈希；卡片发起后语义被修改，旧卡确认会被拒绝。修改意见回到对话说明，由你更新对象后重新发起。

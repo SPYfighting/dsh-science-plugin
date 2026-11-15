@@ -1,5 +1,19 @@
 # dsh-science 开发日志
 
+## 路线 B：中文排版与侧栏模块图形
+
+科研工作台、论文页和研究状态右栏使用本机中文无衬线字体栈。侧栏的概览、论文、团队、成果各有独立图形，待办与团队进度以浅底色、内卡片和留白分组。原生对话入口和工作台布局保持不变。
+
+## 路线 B：按 Media Desk 的工作台模式重做主界面
+
+参考 [Media Desk](https://github.com/woniuniuniu/dsh-media-desk) 的成稿、灵感和复盘页，用课题摘要组织首屏，以独立卡片展示论文、团队与成果。主界面提供分段导航、对话返回入口和待关注事项；论文页用阶段文字取代线性步骤，右栏保留轻量摘要和按对象分类的详情。切页、按钮和卡片的过渡响应系统的减少动态效果设置。
+
+## 路线 B：右栏对象卡片
+
+“研究状态”右栏已将课题摘要、待确认主张、任务、成员和图件拆成独立卡片。支持长主张展开、分批展示结果、图件预览失败后打开原图，并在读取失败时明确标记上次数据、停用确认。技能操作继续填入原生对话草稿。展示层与宿主接线独立，便于下一轮切换项目数据源。
+
+本轮全量测试 374 通过、2 项环境跳过、0 失败，客户端构建与打包检查通过。离线 Edge 核对亮暗色、空态、280 px 双倍字号及交互；真实 DSH 集成验证待项目作用域和状态同步返工后执行。
+
 ## 2026-11-07 P4-1b 进行中：/sci-review web 端验证的最后两个点
 
 ### 当前状态
@@ -814,3 +828,37 @@ finding，并贯通 /state、overview、export、工作台 UI（规格见 SPEC �
 - 技能菜单和 Git 进度诊断改写到 stderr，stdout 不再承载日志。
 - 阶段验证：`npm test` 为 268 项（266 通过、0 失败、2 跳过）；`npm run build:client` 成功，客户端 bundle 139.7 KB、source map 170.9 KB。两项跳过仍为 Windows 沙箱无法创建符号链接/联接的环境限制。
 - 真实 DSH Web 审图与 `npm pack --dry-run` 结果待本轮收尾后追加；完成前不报告发布包或浏览器验收通过。
+
+## 2026-11-13/14：路线 B——对话优先科研卡片工作台重构（M0-M5）
+
+### 架构落地
+
+- Project State 深 module：node:sqlite（WAL/外键/busy_timeout/参数化/迁移 v1→v3）；唯一写 seam `execute()`（单事务：snapshot+audit+幂等回执+outbox）；16+6 个领域命令；派单硬闸门/阶段闸门/对象级 CAS 确认（objectRevision 比对，语义修改才失效）。
+- 作用域：`resolveProjectContext` 唯一 seam（roster 证明队友、fork COW 隔离、attached 只读提案、首写建项目、needs-binding）；客户端只提交 sessionId。
+- host 迁移：全部 16 个蓝图工具 + dispatch 闸门 + 图件挂接 + reviewer claims 走 ProjectCommand；/state 双模（sessionId 项目视图 / legacy 只读）；5 个 workflow commands 删除；ActionDialog 与语义表单删除。
+- 客户端：project-binding 状态机（generation 守卫/gap 补读/last-known-good）；dock 项目上下文+技能条；轮次状态卡（官方 tool 事件折叠，身份=callId）；右栏五分区作战室（确认=act、修改=handoff）。
+
+### 关键 seam 事实（0.2.2-rc.1 实测）
+
+- slot 注入的 inputActions 无 focus()/notify()（SessionInputResolver 面才有）→ dock 按钮 onMouseDown preventDefault 保持焦点。
+- insertText 是光标处插入不是替换 → 追加语义由 insertionTextFor 只返回增量。
+- webServer 路由 handler 支持长连接（SSE）→ 项目 Remote 用 HTTP get/observe/act 而非 typert（第三方无生成器产物）。
+- 第三方插件可在自身 cordis.patch.yml insert `@deepseek-ai/dsh-action-cards`（npm 依赖声明 + 服务绑定后注册 kind）。
+- 未知 `plugin:*` 非 ignorable 事件被持久化校验拒绝（SessionFormatUnsupportedError）——负向兼容测试固化，生产不依赖自定义 durable event。
+
+### 门禁证据
+
+- 单测 361/361（scope/事务/幂等/outbox/闸门/迁移/安全/折叠/导入）；build+pack 干净（90 文件，无交接/凭据/DB/缓存）。
+- 独立审查三轮：M1 架构（2H/10M 全修复）、M2 安全（0H/5M 全修复+6L）、M4 视觉两轮（第一轮 8 中全修复，第二轮 6/6 pass 无新增）。
+- 真实 DSH：composer 20 连击 0 失焦 0 草稿丢失；工作台 handoff E2E；隔离安装验证见下节。
+- 残余低风险清单与执行细节见本地执行记录（tasks/，不入包）。
+
+## 2026-11-14：路线 B 验收返工兼容边界
+
+- 作用域：历史记录只按显式项目、根会话或可解析会话链接归属。`res-N` 和单项目安装都不能推断归属；无法解析的记录保持 `legacy-unscoped`，不进入当前项目视图。
+- 团队：成员键改为 `(rootSessionId, name)`。同名成员可在不同项目并存；跨项目任务引用按缺失处理，不唤醒对方项目。
+- 导入：`legacy_imports` 与快照、审计、回执、outbox 在同一事务提交。重复 `migrationId` 返回原回执，不覆盖台账、不重复导入。
+- 确认：Action Card 同时要求项目 revision、对象 revision 和内容哈希。旧卡在目标对象变化后返回结构化冲突；退回只记录 decision。
+- 读取：工作台和右栏共用一个 Project Binding，不再轮询 `/state`。`/state` 仍保留给旧测试和兼容读取。右栏团队摘要来自已归属 `team.json`，图件摘要来自当前项目成果索引。
+- 目录：项目目录只接受当前 `sessionId`。打开课题只切到已绑定根会话，不改绑当前会话。
+- 迁移：SQLite schema 到 v4。升级不自动导入旧 blueprint/team 语义；原 JSON 保留，需显式预览后导入。

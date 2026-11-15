@@ -44,7 +44,7 @@ export function TeamProgressPage({ view, openMemberSession, memberOpenAvailable 
   }
   return <div className="sci-stack">
     <div className="sci-stat-row">
-      <div className="sci-stat"><strong>{view.team.counts.running}</strong><span>运行中</span></div><div className="sci-stat"><strong>{view.team.counts.waiting}</strong><span>等待中</span></div><div className="sci-stat"><strong>{view.team.counts.completed}</strong><span>已完成</span></div><div className="sci-stat"><strong>{view.team.counts.blocked}</strong><span>受阻</span></div>
+      <div className="sci-stat"><strong>{view.team.counts.running}</strong><span>运行中</span></div><div className="sci-stat"><strong>{view.team.counts.waiting}</strong><span>等待中</span></div><div className="sci-stat"><strong>{view.team.counts.completed}</strong><span>已完成</span></div><div className="sci-stat" data-tone={view.team.counts.blocked > 0 ? 'warn' : 'default'} style={view.team.counts.blocked > 0 ? { color: 'var(--dsh-warning, #b7791f)' } : undefined}><strong>{view.team.counts.blocked}</strong><span>受阻</span></div>
     </div>
     <Panel title="研究团队" subtitle="成员状态和当前负责的任务。点击成员可查看对应会话。">
       {memberError && <StatusMessage tone="error"><b>{memberError.member.name || '成员'}会话未能打开。</b><div>{memberError.message}</div><div className="sci-result-actions"><Button small onClick={() => openMember(memberError.member)}>重试</Button><Button small onClick={() => setMemberError(null)}>关闭提示</Button></div></StatusMessage>}
@@ -55,7 +55,7 @@ export function TeamProgressPage({ view, openMemberSession, memberOpenAvailable 
         {memberOpenAvailable && <div className="sci-result-actions"><Button small onClick={() => openMember(member)}>打开成员会话</Button></div>}
       </div>)}</div> : <EmptyState title="团队尚未启动">开始细化已确认的研究结果后，团队任务会显示在这里。</EmptyState>}
     </Panel>
-    <Panel title="执行任务" subtitle="依赖线从上游任务指向等待它完成的任务。" action={<div className="sci-result-actions"><Button small onClick={() => setMode('graph')} aria-pressed={mode === 'graph'}>依赖图</Button><Button small onClick={() => setMode('list')} aria-pressed={mode === 'list'}>列表</Button></div>}>
+    <Panel title="执行任务" subtitle="依赖线从上游任务指向等待它完成的任务。" action={<div className="sci-result-actions"><Button small primary={mode === 'graph'} aria-pressed={mode === 'graph'} onClick={() => setMode('graph')}>依赖图</Button><Button small primary={mode === 'list'} aria-pressed={mode === 'list'} onClick={() => setMode('list')}>列表</Button></div>}>
       {tasks.length === 0 ? <div className="sci-small">还没有记录的执行任务。</div> : mode === 'list' ? <div className="sci-task-list">{tasks.map((task) => <div className="sci-task-row" key={task.id}><div><b>{task.subject || task.id}</b><div className="sci-small">{task.description || task.resultIds.join('、') || '未关联研究结果'}</div></div><div>{task.assignee || '未分配'}</div><Badge tone={STATE_TONE[task.status]}>{task.label}</Badge>{task.blockers.length > 0 && <div className="sci-small">阻塞：{task.blockers.join('；')}</div>}</div>)}</div> : <div className="sci-task-graph"><div className="sci-task-canvas" style={{ width: layout.width, height: layout.height }}>
         <svg className="sci-task-lines" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} aria-hidden="true">{tasks.flatMap((task) => (task.blockedBy || []).map((id) => {
           const from = layout.position.get(id), to = layout.position.get(task.id)

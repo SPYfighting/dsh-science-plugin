@@ -72,6 +72,7 @@ function memberLiveLabel(status) {
     running: '正在运行',
     idle: '空闲',
     offline: '离线',
+    unknown: '状态待确认',
     'claimed/working': '已领取 · 工作状态待确认',
   }
   return labels[status] || '状态待更新'
@@ -122,6 +123,38 @@ function fileUrl(path) {
   return `/plugins/dsh-science/file?path=${encodeURIComponent(path)}`
 }
 
+const ARTIFACT_KIND_LABELS = Object.freeze({
+  data: '数据',
+  code: '代码',
+  figure: '图件',
+  manuscript: '稿段',
+  reference: '参考文献',
+  other: '其他成果',
+})
+
+function railFiguresOf(snapshot) {
+  const legacy = listOf(snapshot.figures)
+  if (legacy.length > 0) return legacy
+  const projectId = nonEmpty(snapshot.projectId)
+  return asArray(snapshot.artifactIndex?.items)
+    .filter((item) => item && item.kind === 'figure' && (!projectId || !item.projectId || item.projectId === projectId))
+    .slice()
+    .sort((a, b) => Number(b.registeredAt || b.updatedAt || 0) - Number(a.registeredAt || a.updatedAt || 0))
+    .slice(0, 8)
+    .map((item) => ({
+      id: item.id,
+      title: nonEmpty(item.summary) || ARTIFACT_KIND_LABELS.figure,
+      resultId: asArray(item.resultIds)[0] || '',
+      version: nonEmpty(item.versionToken),
+      status: nonEmpty(item.status) || 'available',
+      source: nonEmpty(item.source),
+      verified: item.verified === true,
+      registeredAt: item.registeredAt || item.updatedAt || null,
+      previewable: false,
+      url: null,
+    }))
+}
+
 /** Convert the backend snapshot to page-ready data while preserving unknown/empty states. */
 export function stateViewOf(snapshot) {
   if (!snapshot || typeof snapshot !== 'object' || snapshot.error) {
@@ -133,14 +166,15 @@ export function stateViewOf(snapshot) {
   const rawResults = asArray(blueprint.results)
   const rawTasks = asArray(teamState.tasks).filter((task) => task && !HIDDEN_STATUSES.has(task.status))
   const taskById = new Map(rawTasks.filter((task) => task.id).map((task) => [task.id, task]))
-  const figures = listOf(snapshot.figures)
+  const figures = railFiguresOf(snapshot)
   const files = asArray(snapshot.files)
 
   const tasks = rawTasks.map((task) => {
     const blockers = taskBlockers(task, taskById)
     return {
       ...task,
-      label: statusLabel(task.status),
+      // 术语统一：有未满足依赖/被标记受阻的任务一律显示「受阻」，不再与「等待中」双口径
+      label: blockers.length > 0 ? '受阻' : statusLabel(task.status),
       resultIds: taskResultIds(task),
       blockers,
       isBlocked: blockers.length > 0,
@@ -165,6 +199,7 @@ export function stateViewOf(snapshot) {
       completedTaskCount: linkedTasks.filter((task) => task.isComplete).length,
       runningTaskCount: linkedTasks.filter((task) => task.isRunning).length,
       figures: linkedFigures,
+      materials: (snapshot.artifactIndex && snapshot.artifactIndex.items || []).filter((item) => item.resultIds && item.resultIds.includes(result.id)),
       requiredItems: [...new Set(required)],
       recommendedItems: [...new Set(recommended)],
       tasks: linkedTasks,
@@ -179,7 +214,9 @@ export function stateViewOf(snapshot) {
     blocked: tasks.filter((task) => task.isBlocked).length,
   }
   const members = asArray(teamState.members).map((member) => {
-    const liveStatus = snapshot.memberLive?.[member.name] || 'offline'
+    // 路线 B 的 projectRawOf 不提供 memberLive：缺数据时必须是「状态待确认」中性态，
+    // 不能回落成 offline——否则同屏「进行中」任务与「离线」红点自相矛盾。
+    const liveStatus = snapshot.memberLive?.[member.name] || 'unknown'
     return {
       ...member,
       liveStatus,
@@ -203,7 +240,8 @@ export function stateViewOf(snapshot) {
     }))
 
   const paper = {
-    title: nonEmpty(blueprint.core?.title) || '未命名研究项目',
+    // T6：只写研究问题时，项目卡/右栏用问题作为可读标题，而不是“未命名研究项目”。
+    title: nonEmpty(blueprint.core?.title) || nonEmpty(blueprint.question) || '未命名研究项目',
     stage: STAGES.some((stage) => stage.id === blueprint.stage) ? blueprint.stage : 'explore',
     stageLabel: STAGES.find((stage) => stage.id === blueprint.stage)?.label || '研究探索',
     stageUpdatedAt: Number(blueprint.stageUpdatedAt || 0),
@@ -215,14 +253,23 @@ export function stateViewOf(snapshot) {
       innovation: nonEmpty(blueprint.core?.innovation),
       confirmed: blueprint.core?.confirmed === true,
       revision: blueprint.core?.revision || 1,
+      // T4：确认按钮必须携带对象内容哈希
+      contentHash: asText(blueprint.core?.contentHash),
     },
     narrative: nonEmpty(blueprint.narrative),
+    question: nonEmpty(blueprint.question),
+    scope: nonEmpty(blueprint.scope),
+    sourceSummary: nonEmpty(blueprint.sourceSummary),
+    questionUpdatedAt: Number(blueprint.questionUpdatedAt || 0),
     results: resultRows,
     supportedResults: resultRows.filter((result) => result.status === 'supported').length,
     totalResults: resultRows.length,
     updatedAt: blueprint.updatedAt || snapshot.ts || null,
     error: nonEmpty(snapshot.blueprintError),
   }
+  // T5：dock / 右栏 / 工作台共用同一套“待确认”口径（核心只计已有 claim/title 的候选）。
+  const pendingCore = (paper.core.claim || paper.core.title) && !paper.core.confirmed ? 1 : 0
+  paper.pendingConfirmationCount = pendingCore + resultRows.filter((result) => !result.confirmed && result.status !== 'dropped' && result.manuscriptRole !== 'excluded').length
 
   const artifacts = files.map((file) => {
     const path = asText(file.path)
@@ -302,6 +349,8 @@ export function stateViewOf(snapshot) {
       files: artifacts,
       reviews: asArray(snapshot.reviews),
       workspaceRoot: asText(snapshot.workspaceRoot),
+      index: snapshot.artifactIndex && snapshot.artifactIndex.items || [],
+      recent: (snapshot.artifactIndex && snapshot.artifactIndex.items || []).slice(-3).reverse(),
       groups: [
         { id: 'figures', label: '图表', items: artifacts.filter((item) => item.category === 'figures') },
         { id: 'manuscript', label: '论文文稿', items: artifacts.filter((item) => item.category === 'manuscript') },
@@ -314,6 +363,68 @@ export function stateViewOf(snapshot) {
       roles: snapshot.roles && typeof snapshot.roles === 'object' ? snapshot.roles : {},
       skillMenu: snapshot.skillMenu && typeof snapshot.skillMenu === 'object' ? snapshot.skillMenu : { catalog: {}, installed: {}, integrations: [] },
     },
+  }
+}
+
+/**
+ * T5：把 project-binding 的 project snapshot 投影成 `stateViewOf` 兼容的 raw。
+ *
+ * 路线 B 的身份/修订/论文主线一律来自 project-binding 的 project；legacy 的团队/图件/
+ * 文件/审查读模型不再经 `/state` 轮询进入主路径（T7/T10 的目录与成果索引接管前先留空）。
+ */
+function scopedTeamOf(team, projectId, rootSessionId) {
+  const source = team && typeof team === 'object' ? team : { members: [], tasks: [] }
+  const matches = (record) => {
+    if (!record || typeof record !== 'object') return false
+    if (record.projectId) return Boolean(projectId) && String(record.projectId) === String(projectId)
+    if (record.rootSessionId) return Boolean(rootSessionId) && String(record.rootSessionId) === String(rootSessionId)
+    return false
+  }
+  return {
+    members: asArray(source.members).filter(matches).map((member) => ({
+      name: asText(member.name),
+      role: asText(member.role),
+      label: asText(member.label) || asText(member.role) || asText(member.name),
+      childId: asText(member.childId),
+      parentSessionId: asText(member.parentSessionId),
+    })),
+    tasks: asArray(source.tasks).filter(matches).slice(-20).map((task) => ({
+      id: asText(task.id),
+      subject: asText(task.subject),
+      status: asText(task.status) || 'pending',
+      assignee: asText(task.assignee),
+      blockedBy: asArray(task.blockedBy).map(asText).filter(Boolean),
+      resultIds: taskResultIds(task),
+    })),
+  }
+}
+
+export function projectRawOf(project, { hashes = null, ref = null, team = null, now = null } = {}) {
+  const snapshot = project && project.snapshot && typeof project.snapshot === 'object' ? project.snapshot : {}
+  const paper = snapshot.paper && typeof snapshot.paper === 'object' ? snapshot.paper : { core: {}, results: [] }
+  const core = { ...(paper.core || {}), contentHash: (hashes && hashes.core) || asText(paper.core?.contentHash) }
+  const results = asArray(paper.results).map((result) => ({
+    ...result,
+    contentHash: (hashes && hashes.results && hashes.results[result.id]) || asText(result?.contentHash),
+  }))
+  return {
+    ts: now || Date.now(),
+    projectId: project?.projectId || null,
+    projectRevision: project?.revision ?? null,
+    relationship: ref?.relationship || null,
+    capabilities: ref?.capabilities || null,
+    focus: snapshot.focus || null,
+    blueprint: { ...paper, core, results },
+    team: scopedTeamOf(team, project?.projectId || ref?.projectId || null, ref?.rootSessionId || null),
+    figures: [],
+    artifactIndex: snapshot.artifactIndex || { items: [] },
+    figurePlans: [],
+    reviews: [],
+    files: [],
+    roles: {},
+    skillMenu: { catalog: {}, installed: {}, integrations: [] },
+    memberLive: {},
+    workspaceRoot: '',
   }
 }
 

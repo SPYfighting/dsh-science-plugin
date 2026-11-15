@@ -381,3 +381,72 @@ DOCTYPE ENTITY；字符引用解码（含省略分号的 `&#106` 形式）、XML
 - 专家配置：精选目录每角色不超过 3 项；RDKit 归入数据分析角色。工作台卡片显示运行环境、来源仓库、许可证、`SKILL.md` 状态/路径、使用风险和安装状态。技能目录接口保留仓库与安装位置等字段。
 - 诊断输出：技能安装与 Git 进度诊断写到 stderr，stdout 保留给工具返回值和机器可读结果。
 - 验证状态：2026-11-13 源码单测为 268 项（266 通过、0 失败、2 跳过），客户端构建通过。真实 DSH Web 多尺寸和错误状态验收、发布包 dry-run 将在任务收尾时记录到开发日志与本地交接文件。
+
+## 24. 对话优先科研卡片工作台（路线 B，2026-11-13/14 重构）
+
+本节描述 2026-11-13 路线 B 重构后的实际架构；与旧章节冲突时以本节为准。
+
+### 24.1 分层
+
+| 层 | 真源/职责 | 不承担 |
+|---|---|---|
+| 对话与会话事件 | 用户意图、AI 解释、工具执行、Action Card 决策（官方 durable events） | 充当论文数据库 |
+| 项目状态 | 按项目隔离的科研对象（core/results/claims/evidence/确认/焦点/引用），SQLite 唯一业务真源 | 保存 UI 展开状态 |
+| 卡片（dock/turn/右栏） | 读取以上两层，观察/聚焦/触发（handoff）/确认（revision 绑定 act） | 第二份业务真源 |
+
+### 24.2 存储（§8.4 实现）
+
+`$DSH_HOME/dsh-science/science-state.sqlite`（node:sqlite；WAL、foreign_keys、busy_timeout 5000、全参数化）。表：projects / snapshots（最新 JSON snapshot）/ audit_events / idempotency_receipts（主键 (project_id, mutation_id)）/ outbox / root_bindings / legacy_imports / schema_migrations。迁移版本 1→4 幂等。
+
+### 24.3 唯一写 seam 与领域命令
+
+全部业务写入经 `execute()`：同一 `BEGIN IMMEDIATE` 事务推进 project revision、写 snapshot、审计、幂等回执与 outbox；handler 抛错整批回滚；发布失败不回滚业务事实（outbox 重试，订阅者失败才保持待发；无订阅者标记已发布，跨进程以 revision gap 补读）。领域命令（16+6 个，见 lib/project-domain.js COMMANDS）：paper.propose-core/propose-result/update-result/record-evidence/record-claim/confirm-revision/set-stage/dispatch-gate/…、project.attach-session（表+快照+审计同事务）。语义修改才推进对象 revision 并使确认失效；执行性更新（记录证据/链任务/改状态）不影响确认。
+
+### 24.4 作用域与角色
+
+`resolveProjectContext(ctx, sessionId)` 是唯一 scope seam：roster（childId 精确匹配 + spawn 时记录的 parentSessionId）证明队友身份；有 parentSession 但不在 roster = fork（写时复制隔离，能力全 false）；root/attached 绑定读 root_bindings 表。首写建项目（ensureProject）：teammate 在队长未绑定时 needs-binding。客户端只能提交 sessionId；projectId/path 一律服务端解析。
+
+历史团队、任务、图件和审查记录按显式 `projectId`、显式 `rootSessionId`、可解析 `sessionId` 的稳定链接归属。无法解析时标 `legacy-unscoped`。禁止用 `res-N`、安装里只有一个项目或同名对象推断归属。
+
+成员查找键是 `(rootSessionId, name)`。同名成员可在不同项目各有一份，childId 不同。任务的 `assignee` 与 `blockedBy` 只在当前项目解析。
+
+`GET /project/catalog?sessionId=` 只返回当前工作区课题摘要。`POST /project/open` 只切换到目标课题已绑定的根会话，不改写当前会话绑定。
+
+### 24.5 Remote 与 HTTP 面
+
+- `GET /plugins/dsh-science/project/get?sessionId=&knownRevision=`（快照/notModified；附当前项目团队摘要，不附全局文件或审查）
+- `GET /plugins/dsh-science/project/observe?sessionId=`（SSE：baseline/change/reset/streamFailure；1s 兜底轮询比较 revision 补跨实例写；断线 last-known-good + stale）
+- `POST /plugins/dsh-science/project/act`（白名单：project.ensure-binding、paper.confirm-revision；expectedRevision + expectedObjectRevision 必填；fail-closed 鉴权）
+- `/state` 双模：带 sessionId → 项目隔离视图；不带 → legacy 只读（legacy:true）
+- Action Cards：`sci-paper-confirm` kind（宿主审批 + durable decision）；第三方插件经自身 cordis.patch 可挂载 dsh-action-cards 服务。
+
+### 24.6 切断的旧链路
+
+- workflow commands（/sci-write 等 5 个）已删除——技能入口统一走 conversation.input.dock 的科研技能条（captureInsertion/insertText + onMouseDown preventDefault 焦点纪律；slot 注入的 inputActions 无 focus()/notify()，这是 0.2.2-rc.1 的实际 facade）。
+- 工具不再写 blueprint.json/team.json 的论文语义字段（team.json 保持 roster+任务板执行身份）；/state legacy 只读。
+- ActionDialog 与语义表单已删除：语义修改 = composer handoff（requestDraftInitialization append）；确认 = revision 绑定 act。
+
+### 24.7 旧数据迁移
+
+`sci_blueprint_import_legacy`（dry_run 预览）：完整字段映射（status/direction/evidenceState/presentation/claims/evidence/references/tasks/figures/screening/notes），`paper.import-legacy-result` 命令逐条入账；同源 hash 幂等（legacy_imports 台账）；同名 result 跳过；旧 confirmed=true 保留为 legacy-migration 凭据；原文件永不删除。跨项目冲突明确报错。
+
+### 24.9 暂定论文骨架与最小上下文（T10）
+
+骨架生命周期只追加修订，不覆盖历史：
+
+| 动作 | 命令 | 效果 |
+| --- | --- | --- |
+| 提案 | `paper.propose-core` / `paper.propose-result` / `paper.record-proposal` | 写入待确认草案；来源必填；不自动确认、不派发 |
+| 确认 | `paper.confirm-revision` | 只绑定用户审阅过的对象修订和内容哈希 |
+| 修改 | `paper.update-result` 等语义命令 | 先记录旧修订的主张、任务和证据关系，再推进对象修订并使旧确认失效 |
+| 归档 | `paper.archive-object` | 保留对象与历史关系，标记 archived |
+
+`sci_context_pack` 只从当前会话生成摘要和引用。正文只在明确展开时读取，并记录截断。过期引用同时返回被引用修订和当前修订，不静默更换对象。卡片、导出摘要和交接文本是派生视图。模型没有执行带写入回执的工具时，轮次卡不显示“已保存”。
+
+### 24.10 项目文件与成果索引（T11）
+
+索引记录包含稳定 ID、项目归属、类型、来源、路径或宿主引用、版本、摘要、生成任务、Result/Claim 链接和可用状态。用户文件、工作产物和已登记证据分开；文件存在不等于证据已核验。登记和重新定位不批量移动、重命名或删除。失联文件可诊断；同名新文件不能替换历史版本引用。读取前重新校验宿主权限、项目归属和路径边界。右栏只投影当前项目最多 8 条已登记图件摘要，不返回路径或打开链接。
+
+### 24.8 验证矩阵摘要
+
+单测 361 项（scope 矩阵/事务幂等/outbox/派单闸门/确认语义/迁移/安全回归/轮次折叠/导入）。真实 DSH：composer 20 连击 0 失焦 0 草稿丢失；工作台 handoff E2E；两轮独立视觉审查（第一轮 8 中全修复，第二轮 6/6 pass 无新增高/中）。M0-M5 门禁记录见本地执行记录（不入包）。

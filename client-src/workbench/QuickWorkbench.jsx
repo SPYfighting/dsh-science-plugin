@@ -1,36 +1,62 @@
+// Host adapter for the research sidebar. State and action wiring live here; the
+// presentational ResearchRail is reused by the full workbench.
+// T5：状态只来自共享 project-binding（不再轮询 /state）。
 import React, { useState } from 'react'
-import { buildWorkflowRequest, submitWorkflowRequest } from './workflow-actions.js'
-import { WorkbenchStyles } from './styles.js'
-import { Button, Panel, StatusMessage } from './components/ui.jsx'
-import { useWorkbenchState } from './use-workbench-state.js'
+import { semanticHandoffOf, confirmObjectViaAct } from './workbench-actions.js'
+import { useProjectBinding } from '../project/use-project-binding.js'
+import { ResearchRail } from './ResearchRail.jsx'
+import { ProjectCatalog } from './ProjectCatalog.jsx'
 
 export function QuickWorkbench({ services }) {
-  const state = useWorkbenchState(8000)
+  const state = useProjectBinding(services)
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  const view = state.view
-  const submitNext = async () => {
-    if (!view || busy) return
-    const step = view.paper.nextStep
-    if (!step.action) { setMessage('请打开完整工作台查看当前建议。'); return }
-    if (step.action === 'explore') { setMessage('请打开完整工作台填写研究问题后再开始探索。'); services?.openWorkbench?.(); return }
-    const built = buildWorkflowRequest({ action: step.action, paperState: state.raw?.blueprint || {}, targetId: step.targetId })
-    if (!built.ok) { setMessage(built.error.message); services?.openWorkbench?.(); return }
-    setBusy(true); setMessage('')
+  const [notice, setNotice] = useState(null)
+  const [catalogOpen, setCatalogOpen] = useState(false)
+
+  const doConfirm = async (objectId, revision, contentHash) => {
+    setBusy(true); setNotice(null)
     try {
-      const session = await services?.getCurrentSession?.()
-      const result = await submitWorkflowRequest({ session, request: built.request })
-      setMessage(result.ok ? '请求已提交到当前对话。' : `${result.message} ${result.recovery}`)
-      if (result.ok) await state.refresh()
+      const r = await confirmObjectViaAct({
+        sessionId: state.sessionId,
+        objectId,
+        expectedObjectRevision: revision,
+        expectedHash: contentHash,
+        expectedRevision: state.revision,
+      })
+      if (r.ok) {
+        setNotice({ tone: 'success', text: '已确认当前修订。' })
+        await state.refresh()
+      } else {
+        setNotice({ tone: 'error', text: r.reason || '确认未执行。' })
+      }
     } finally { setBusy(false) }
   }
-  return <div className="sci-workbench sci-quick"><WorkbenchStyles /><Panel title="科研工作台" subtitle={view ? `当前阶段：${view.paper.stageLabel}` : '论文进度与下一步操作'}>
-    {state.error && !view ? <StatusMessage tone="error">{state.error}<Button small onClick={state.refresh}>重新读取</Button></StatusMessage> : view ? <>
-      <h2 className="sci-title">{view.paper.title}</h2>
-      <div className="sci-small">{view.paper.totalResults} 项结果 · {view.team.counts.running} 项运行中 · {view.team.counts.blocked} 项受阻</div>
-      <hr className="sci-rule" /><b>{view.paper.nextStep.label}</b>
-      <div className="sci-result-actions"><Button primary small onClick={submitNext} disabled={busy}>{busy ? '正在提交…' : '继续下一步'}</Button><Button small onClick={() => services?.openWorkbench?.()}>打开完整工作台</Button></div>
-      {message && <div className="sci-small" role="status">{message}</div>}
-    </> : <div className="sci-small">正在读取状态…</div>}
-  </Panel></div>
+
+  const doHandoff = async (kind, target = null) => {
+    setBusy(true); setNotice(null)
+    try {
+      const handoff = semanticHandoffOf(kind, target) || { kind }
+      const r = await services?.prepareHandoff?.(handoff.kind, handoff.target)
+      if (r?.ok) {
+        setNotice({ tone: 'success', text: '已填入对话草稿，请补充后发送。' })
+      } else {
+        setNotice({ tone: 'error', text: '未能填入草稿。请回到当前对话后重试，或直接描述你想做的事。' })
+      }
+    } catch {
+      setNotice({ tone: 'error', text: '未能填入草稿。请回到当前对话后重试。' })
+    } finally { setBusy(false) }
+  }
+
+  const openMember = async (member) => {
+    try {
+      await services.openMemberSession(member)
+      setNotice(null)
+    } catch (error) {
+      setNotice({ tone: 'error', text: error?.message || '无法打开该成员会话，请从完整工作台重试。' })
+    }
+  }
+  return <ResearchRail key={state.projectId || 'unbound'} view={state.view} raw={state.raw} error={state.error} notice={notice} busy={busy}
+    onRefresh={state.refresh} onWorkbench={() => services?.openWorkbench?.()} onHandoff={doHandoff} onConfirm={doConfirm}
+    onOpenCatalog={() => setCatalogOpen(true)} catalog={<ProjectCatalog services={services} />}
+    onOpenMember={services?.memberOpenAvailable?.(state.view) ? openMember : undefined} onDismiss={() => setNotice(null)} />
 }

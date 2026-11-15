@@ -1,14 +1,19 @@
-import React, { useState } from 'react'
-import { buildWorkflowRequest, submitWorkflowRequest } from './workflow-actions.js'
+import React, { useEffect, useState } from 'react'
+import { semanticHandoffOf, confirmObjectViaAct } from './workbench-actions.js'
 import { WorkbenchStyles } from './styles.js'
-import { ActionDialog, Badge, Button, Panel, StatusMessage } from './components/ui.jsx'
+import { Button, Panel, StatusMessage } from './components/ui.jsx'
+import { WorkspaceOverview } from './WorkspaceOverview.jsx'
+import { RESEARCH_DESK_CSS } from './research-desk-styles.js'
 import { PaperSpinePage } from './PaperSpinePage.jsx'
 import { TeamProgressPage } from './TeamProgressPage.jsx'
 import { ArtifactsPage } from './ArtifactsPage.jsx'
 import { ExpertSetupPage } from './ExpertSetupPage.jsx'
-import { useWorkbenchState } from './use-workbench-state.js'
+import { useProjectBinding } from '../project/use-project-binding.js'
+import { ProjectCatalog } from './ProjectCatalog.jsx'
 
 const NAV = [
+  { id: 'overview', label: '概览' },
+  { id: 'catalog', label: '项目总览' },
   { id: 'paper', label: '论文主线' },
   { id: 'team', label: '团队进展' },
   { id: 'artifacts', label: '图表与成果' },
@@ -20,59 +25,77 @@ function WorkbenchMark() {
 }
 
 export function ResearchWorkbench({ services }) {
-  const state = useWorkbenchState()
-  const [page, setPage] = useState('paper')
-  const [dialog, setDialog] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
-  const [toast, setToast] = useState('')
-
-  const openAction = (action, targetId = null) => {
-    setError(null)
-    setDialog({ action, targetId })
-  }
-  const openConversation = () => services?.openConversation?.()
-  const submitAction = async (values) => {
-    if (!dialog || busy || !state.raw) return
-    const built = buildWorkflowRequest({ action: dialog.action, paperState: state.raw.blueprint || {}, targetId: dialog.targetId, userInput: values })
-    if (!built.ok) { setError(built.error); return }
-    setBusy(true); setError(null)
+  const state = useProjectBinding(services)
+  const [page, setPage] = useState('overview')
+  useEffect(() => {
     try {
-      const session = await services?.getCurrentSession?.()
-      const result = await submitWorkflowRequest({ session, request: built.request })
-      if (!result.ok) { setError(result); return }
-      setDialog(null)
-      setToast('请求已提交到当前对话；研究状态会在后端记录更新后刷新。')
-      window.setTimeout(() => setToast(''), 5200)
-      await state.refresh()
-    } catch (errorValue) {
-      setError({ message: '无法提交到当前对话。', recovery: '确认 DSH 会话仍然打开后，可以安全重试。', detail: errorValue.message })
+      if (window.__DSH_SCIENCE_OPEN_PAGE__ === 'catalog') {
+        setPage('catalog')
+        window.__DSH_SCIENCE_OPEN_PAGE__ = ''
+      }
+    } catch { /* 非浏览器宿主没有这个交接标记 */ }
+  }, [])
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState(null)
+
+  // 语义动作：composer handoff（不发送、不建表单）；失败提示回到对话
+  const openAction = async (action, targetId = null) => {
+    const handoff = semanticHandoffOf(action, targetId)
+    if (!handoff) { setNotice({ tone: 'error', text: '无法识别这个动作。' }); return }
+    setBusy(true); setNotice(null)
+    try {
+      const r = await services?.prepareHandoff?.(handoff.kind, handoff.target)
+      if (r && r.ok) {
+        setNotice({ tone: 'success', text: '已在对话输入框准备请求；请补充说明后发送。' })
+      } else {
+        const reason = (r && (r.reason || r.code)) || '当前会话不支持预填。'
+        setNotice({ tone: 'error', text: `未能准备到输入框（${reason}）。请打开对话手动描述。` })
+        try { services?.openConversation?.() } catch { /* ignore */ }
+      }
     } finally { setBusy(false) }
   }
-  const copyDiagnostic = async (detail) => {
-    try { await navigator.clipboard.writeText([detail.message, detail.recovery, detail.detail].filter(Boolean).join('\n')) } catch { /* clipboard is optional */ }
+
+  // 确定性动作：直接 revision 绑定确认（不经过模型）
+  const confirmResult = async (objectId, expectedObjectRevision, expectedHash) => {
+    setBusy(true); setNotice(null)
+    try {
+      const r = await confirmObjectViaAct({
+        sessionId: state.sessionId,
+        objectId,
+        expectedObjectRevision,
+        expectedHash,
+        expectedRevision: state.revision,
+      })
+      if (r.ok) {
+        setNotice({ tone: 'success', text: '已确认当前修订；确认后才能据此派发执行任务。' })
+        await state.refresh()
+      } else {
+        setNotice({ tone: 'error', text: r.reason || '确认未执行。' })
+      }
+    } finally { setBusy(false) }
   }
 
+  const openConversation = () => services?.openConversation?.()
   const currentView = state.view
-  return <div className="sci-workbench">
-    <WorkbenchStyles />
+  return <div className="sci-workbench sci-desk" lang="zh-CN">
+    <WorkbenchStyles /><style>{RESEARCH_DESK_CSS}</style>
     <div className="sci-wb-shell">
       <header className="sci-wb-header">
-        <div className="sci-wb-brand"><WorkbenchMark /><div><h1>科研工作台</h1><div className="sci-wb-subtitle">{currentView ? currentView.paper.title : '论文主线 · 团队进展 · 科研成果'}</div></div></div>
-        <div className="sci-wb-head-actions">{currentView && <Badge>{currentView.paper.stageLabel}</Badge>}<Button onClick={openConversation}>打开对话</Button></div>
+        <div className="sci-wb-brand"><WorkbenchMark /><span>科研工作台</span></div>
+        <nav className="sci-wb-nav" aria-label="科研工作台页面">{NAV.map((item) => <button key={item.id} type="button" aria-current={page === item.id ? 'page' : undefined} onClick={() => setPage(item.id)}>{item.label}</button>)}</nav>
+        <div className="sci-wb-head-actions"><Button onClick={openConversation}>回到对话 <span aria-hidden="true">↗</span></Button></div>
       </header>
       <main className="sci-wb-content">
-        <nav className="sci-wb-nav" aria-label="科研工作台页面">{NAV.map((item) => <button key={item.id} type="button" aria-current={page === item.id ? 'true' : undefined} onClick={() => setPage(item.id)}>{item.label}</button>)}</nav>
-        {state.loading && !currentView ? <Panel><div className="sci-empty"><div><h2>正在读取研究状态</h2><p>工作台从当前 DSH 项目读取论文蓝图、团队任务和已登记成果。</p></div></div></Panel> : state.error && !currentView ? <Panel title="暂时无法读取工作台状态"><StatusMessage tone="error">{state.error}<div className="sci-result-actions"><Button onClick={state.refresh}>重新读取</Button><Button onClick={openConversation}>打开对话</Button></div></StatusMessage></Panel> : currentView && <>
-          {page === 'paper' && <PaperSpinePage view={currentView} raw={state.raw} onAction={openAction} onOpenConversation={openConversation} onNavigate={setPage} />}
+        {page === 'catalog' ? <div className="sci-desk-scene"><ProjectCatalog services={services} /></div> : state.loading && !currentView ? <Panel><div className="sci-empty"><div><h2>正在读取研究状态</h2><p>工作台从当前 DSH 项目读取论文主线、团队任务和已登记成果。</p></div></div></Panel> : state.error && !currentView ? <Panel title="暂时无法读取工作台状态"><StatusMessage tone="error">{state.error}<div className="sci-result-actions"><Button onClick={state.refresh}>重新读取</Button><Button onClick={openConversation}>打开对话</Button></div></StatusMessage></Panel> : currentView && <div className="sci-desk-scene" key={page}>
+          {page === 'overview' && <WorkspaceOverview view={currentView} raw={state.raw} busy={busy} onAction={openAction} onNavigate={setPage} onOpenConversation={openConversation} onOpenCatalog={() => setPage('catalog')} />}
+          {page === 'paper' && <PaperSpinePage view={currentView} raw={state.raw} onAction={openAction} onConfirm={confirmResult} busy={busy} onOpenConversation={openConversation} onNavigate={setPage} />}
           {page === 'team' && <TeamProgressPage view={currentView} openMemberSession={services?.openMemberSession} memberOpenAvailable={services?.memberOpenAvailable?.(currentView)} />}
           {page === 'artifacts' && <ArtifactsPage view={currentView} onAction={openAction} />}
           {page === 'experts' && <ExpertSetupPage view={currentView} refresh={state.refresh} />}
           {state.error && <div className="sci-small" style={{ marginTop: 14 }} role="status">状态刷新失败，正在显示上一次成功读取的数据：{state.error}</div>}
-        </>}
+        </div>}
       </main>
     </div>
-    {dialog && <ActionDialog action={dialog.action} target={dialog.targetId && currentView?.paper.results.find((result) => result.id === dialog.targetId)} onClose={() => { if (!busy) { setDialog(null); setError(null) } }} onSubmit={submitAction} busy={busy} error={error} onOpenConversation={openConversation} onCopyDiagnostic={copyDiagnostic} />}
-    {toast && <div className="sci-toast" role="status">{toast}<div className="sci-result-actions"><Button small onClick={openConversation}>打开对话</Button><Button small onClick={() => setToast('')}>关闭</Button></div></div>}
+    {notice && <div className={`sci-toast`} role="status" data-tone={notice.tone}>{notice.text}<div className="sci-result-actions"><Button small onClick={openConversation}>打开对话</Button><Button small onClick={() => setNotice(null)}>关闭</Button></div></div>}
   </div>
 }
