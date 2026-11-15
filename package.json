@@ -1,5 +1,5 @@
 {
-  "name": "dsh-science",
+  "name": "dsh-science-plugin",
   "version": "0.14.0",
   "description": "Scientific workbench for DeepSeek Harness: publication figures, database connections, auto result review, SSH remote compute",
   "type": "module",

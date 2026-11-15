@@ -1,14 +1,14 @@
 {
   "format": 1,
   "title": {
-    "en": "dsh-science community index",
-    "zh": "dsh-science 社区索引"
+    "en": "dsh-science-plugin community index",
+    "zh": "dsh-science-plugin 社区索引"
   },
   "plugins": [
     {
-      "name": "dsh-science",
+      "name": "dsh-science-plugin",
       "title": {
-        "en": "dsh-science Science Workbench",
+        "en": "dsh-science-plugin Science Workbench",
         "zh": "科研工作台"
       },
       "description": {
@@ -17,9 +17,9 @@
       },
       "icon": "assets/mascots/lead.svg",
       "author": "SPYfighting",
-      "homepage": "https://github.com/SPYfighting/deepseek-science",
+      "homepage": "https://github.com/SPYfighting/dsh-science-plugin",
       "repository": {
-        "url": "https://github.com/SPYfighting/deepseek-science"
+        "url": "https://github.com/SPYfighting/dsh-science-plugin"
       },
       "versions": [
         {
@@ -27,7 +27,7 @@
           "publishTimestamp": 1794469956,
           "source": {
             "type": "git",
-            "url": "https://github.com/SPYfighting/deepseek-science"
+            "url": "https://github.com/SPYfighting/dsh-science-plugin"
           },
           "engines": {
             "dsh": ">=0.2.0 <0.3.0"
@@ -38,7 +38,7 @@
           "publishTimestamp": 1794182400,
           "source": {
             "type": "git",
-            "url": "https://github.com/SPYfighting/deepseek-science"
+            "url": "https://github.com/SPYfighting/dsh-science-plugin"
           },
           "engines": {
             "dsh": ">=0.2.0 <0.3.0"

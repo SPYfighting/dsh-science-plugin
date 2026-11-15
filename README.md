@@ -1,6 +1,6 @@
-# dsh-science｜对话优先科研工作台
+# dsh-science-plugin｜对话优先科研工作台
 
-`dsh-science` 是 DeepSeek Harness（DSH）的科研插件。它把研究问题、可核验结果、团队任务和图件组织成**按项目隔离的结构化状态**，并把这些状态投影到原生对话输入框、会话轮次和右侧栏的卡片上。你继续用自然语言做科研，插件负责记住论文主线、守住确认闸门、把团队与产物整理成可核对的状态。
+`dsh-science-plugin` 是 DeepSeek Harness（DSH）的科研插件。它把研究问题、可核验结果、团队任务和图件组织成**按项目隔离的结构化状态**，并把这些状态投影到原生对话输入框、会话轮次和右侧栏的卡片上。你继续用自然语言做科研，插件负责记住论文主线、守住确认闸门、把团队与产物整理成可核对的状态。
 
 界面中的"研究结果（Result）""主张（Claim）"和"证据（Evidence）"是插件数据结构的固定名称：研究结果由可检验主张和证据支持。确认操作绑定当前修订；内容修改后需要重新确认。
 
@@ -16,13 +16,19 @@
 
 ## 安装与入口
 
-需要 DeepSeek Harness `>=0.2.0 <0.3.0`（当前按 DSH `0.2.2-rc.3` 的客户端服务接口与 Action Cards 组合构建）。插件目前通过本仓库分发，尚未发布到 npm/插件市场；从本地目录安装：
+需要 DeepSeek Harness `>=0.2.0 <0.3.0`（当前按 DSH `0.2.2-rc.3` 的客户端服务接口与 Action Cards 组合构建）。使用 DSH 官方插件命令安装（npm 包 `dsh-science-plugin`）：
 
 ```bash
-dsh plugin --profile web add "D:\path\to\dsh-science"
+dsh plugin --profile web add dsh-science-plugin
 ```
 
-也可以在 DSH 的插件管理页面添加本地目录。安装后重启对应的 DSH 配置。
+也可以指定 GitHub 仓库安装：
+
+```bash
+dsh plugin --profile web add github:SPYfighting/dsh-science-plugin
+```
+
+安装后重启对应的 DSH 配置。
 
 打开方式：直接在会话中对话即可——输入框上方出现"科研"技能条表示插件已加载。右侧栏的"研究状态"提供"查看全部项目"，只列出当前工作区的课题摘要；打开课题会切到它已绑定的根会话，不改绑当前会话。左侧栏的"科研工作台"按需打开。
 
