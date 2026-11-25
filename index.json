@@ -23,25 +23,15 @@
       },
       "versions": [
         {
-          "version": "0.14.0",
-          "publishTimestamp": 1794469956,
+          "version": "0.14.1",
+          "publishTimestamp": 1795617858,
           "source": {
             "type": "git",
-            "url": "https://github.com/SPYfighting/dsh-science-plugin"
+            "url": "https://github.com/SPYfighting/dsh-science-plugin",
+            "commit": "5ce23e5d27064b44fdd9e6f31350de2a64e34db3"
           },
           "engines": {
-            "dsh": ">=0.2.0 <0.3.0"
-          }
-        },
-        {
-          "version": "0.7.1",
-          "publishTimestamp": 1794182400,
-          "source": {
-            "type": "git",
-            "url": "https://github.com/SPYfighting/dsh-science-plugin"
-          },
-          "engines": {
-            "dsh": ">=0.2.0 <0.3.0"
+            "dsh": ">=0.2.2-rc.3 <0.2.3-0"
           }
         }
       ]

@@ -16,21 +16,33 @@
 
 ## 安装与入口
 
-需要 DeepSeek Harness `>=0.2.0 <0.3.0`（当前按 DSH `0.2.2-rc.3` 的客户端服务接口与 Action Cards 组合构建）。使用 DSH 官方插件命令安装（npm 包 `dsh-science-plugin`）：
+科研工作台 0.14.1 支持 DSH `>=0.2.2-rc.3 <0.2.3-0`，已在 `0.2.2-rc.3` 和 `0.2.2-rc.5` 的 Web 客户端验证。已安装 0.14.0 的用户也可以用下面的命令升级。
+
+**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.14.1`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
+
+**命令行安装。** 在使用 DSH Web 的机器上运行下面一条命令，再重启正在运行的 `dsh web`。如果使用自建的配置，将 `web` 换成对应的 profile 名称。[DSH 官方插件发布与安装说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/develop/basic/publish.zh.md)
 
 ```bash
-dsh plugin --profile web add dsh-science-plugin
+dsh plugin --profile web add dsh-science-plugin@0.14.1
 ```
 
-也可以指定 GitHub 仓库安装：
+**从 GitHub 安装。** 可以安装固定的源码提交，或从 [v0.14.1 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.14.1) 下载 `dsh-science-plugin-0.14.1.tgz` 后在下载目录安装。两种方式任选一种。
 
 ```bash
-dsh plugin --profile web add github:SPYfighting/dsh-science-plugin
+# 固定 Git 提交
+dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#5ce23e5d27064b44fdd9e6f31350de2a64e34db3
+
+# 已下载的发布包
+dsh plugin --profile web add ./dsh-science-plugin-0.14.1.tgz
 ```
 
-安装后重启对应的 DSH 配置。
+**在 DSH「发现」中浏览。** 在 **插件 → 实验性插件** 启用 **自定义插件索引**。打开 **发现 → 添加索引源**，粘贴下面的地址，再搜索“科研工作台”并安装。[DSH 官方索引指南](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/guide/plugin-market.zh.md)
 
-打开方式：直接在会话中对话即可——输入框上方出现"科研"技能条表示插件已加载。右侧栏的"研究状态"提供"查看全部项目"，只列出当前工作区的课题摘要；打开课题会切到它已绑定的根会话，不改绑当前会话。左侧栏的"科研工作台"按需打开。
+```text
+https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.json
+```
+
+**确认启用。** 打开会话后，输入框上方会出现“科研”技能条。左侧的“科研工作台”可查看论文主线、团队进展和图件。右侧“研究状态”中的“查看全部项目”列出当前工作区的课题，点击课题可回到对应的根会话。
 
 ## 首次使用
 
