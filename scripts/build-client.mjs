@@ -2,6 +2,7 @@
 // (packages/client/tsdown.client.ts): CJS output wrapped in the ModuleLoader
 // handoff, platform modules left external (provided by the runtime module table).
 import { build } from 'esbuild'
+import manifest from '../package.json' with { type: 'json' }
 
 const PLATFORM_MODULES = [
   'react',
@@ -18,7 +19,7 @@ const PLATFORM_MODULES = [
 ]
 
 const BANNER = [
-  'window.__ModuleLoader__.load({ id: "dsh-science", factory: (require) => {',
+  `window.__ModuleLoader__.load({ id: ${JSON.stringify(manifest.name)}, factory: (require) => {`,
   'var module = { exports: {} };',
   'var exports = module.exports;',
 ].join('\n')

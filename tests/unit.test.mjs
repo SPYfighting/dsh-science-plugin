@@ -2274,7 +2274,7 @@ describe('工作台宿主注册防重复 seam', () => {
     }
     runInNewContext(source, {
       window: { __ModuleLoader__: { load(payload) {
-        assert.equal(payload.id, 'dsh-science')
+        assert.equal(payload.id, JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).name)
         plugin = payload.factory((name) => {
           assert.ok(['react', 'react/jsx-runtime'].includes(name), `unexpected platform module ${name}`)
           return {}

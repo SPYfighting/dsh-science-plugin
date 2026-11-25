@@ -5,7 +5,7 @@
 // 事实来源：官方 bundle `@deepseek-ai/dsh-personalized-recommendations` 的插件行同时
 // 插入 `@deepseek-ai/dsh-action-cards`（Host）与 `@deepseek-ai/dsh-client-ui-action-cards`
 // （Client）。只装 Host 时服务端能登记 kind，但对话回答下方没有已加载的客户端渲染器。
-// 当前 DSH 运行时（app.asar/dsh/package.json）为 0.2.2-rc.3，两个包都以该版本随运行时提供。
+// 两个包由 DSH 运行时配套提供。
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -59,23 +59,14 @@ describe('T0 红灯：Action Cards Host + Client 有效组合', () => {
     assert.notEqual(client.disabled, true, 'Action Cards 客户端行不得禁用')
   })
 
-  test('Action Cards 依赖版本与当前 DSH 运行时精确一致（不使用 ^/~ 范围）', () => {
+  test('工作台插件行按公开包名解析，确认卡使用宿主提供的配套版本', () => {
     const pkg = JSON.parse(read('package.json'))
-    const spec = pkg.dependencies && pkg.dependencies[HOST_ACTION_CARDS]
-    assert.ok(spec, `package.json 必须声明 ${HOST_ACTION_CARDS}`)
-    assert.match(
-      String(spec),
-      /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/,
-      `Action Cards 依赖必须是精确版本（当前为 ${CURRENT_DSH_RUNTIME_VERSION}），实际为 "${spec}"`,
-    )
-    assert.equal(
-      spec,
-      CURRENT_DSH_RUNTIME_VERSION,
-      `Action Cards 依赖必须与当前 DSH 运行时 ${CURRENT_DSH_RUNTIME_VERSION} 精确一致，实际为 "${spec}"`,
-    )
+    const mainRow = patchRows(read('cordis.patch.yml')).find(row => row.id === 'dsh-science')
+    assert.equal(mainRow?.name, pkg.name)
+    for (const name of [HOST_ACTION_CARDS, CLIENT_ACTION_CARDS]) {
+      assert.equal(pkg.peerDependencies[name], pkg.engines.dsh)
+      assert.equal(pkg.dependencies[name], undefined)
+    }
+    assert.equal(pkg.devDependencies[HOST_ACTION_CARDS], pkg.devDependencies[CLIENT_ACTION_CARDS])
   })
 })
-
-// 当前安装的 DSH 桌面运行时版本（app.asar/dsh/package.json，0.2.2-rc.3）。
-// 升级 DSH 时本常量与 package.json 的 action-cards 版本必须一起更新——这正是回归点。
-const CURRENT_DSH_RUNTIME_VERSION = '0.2.2-rc.3'

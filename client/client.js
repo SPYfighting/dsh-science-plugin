@@ -1,4 +1,4 @@
-window.__ModuleLoader__.load({ id: "dsh-science", factory: (require) => {
+window.__ModuleLoader__.load({ id: "dsh-science-plugin", factory: (require) => {
 var module = { exports: {} };
 var exports = module.exports;
 var __create = Object.create;
