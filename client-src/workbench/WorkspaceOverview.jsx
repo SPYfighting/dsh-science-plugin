@@ -33,6 +33,7 @@ export function WorkspaceOverview({ view, raw, busy, onAction, onNavigate, onOpe
       <div className="sci-desk-actions">
         <Button primary disabled={busy} onClick={hasProject ? onOpenConversation : () => onAction('explore')}>{hasProject ? '继续研究对话' : '在对话中开始探索'} <span aria-hidden="true">↗</span></Button>
         <Button disabled={busy} onClick={() => onAction(hasProject ? 'literature' : 'import_results')}>{hasProject ? '探索文献' : '整理已有结果'}</Button>
+        <Button onClick={() => onNavigate('experts')}>配置项目专家</Button>
         {onOpenCatalog && <Button disabled={busy} onClick={onOpenCatalog}>查看全部项目</Button>}
       </div>
       </div>

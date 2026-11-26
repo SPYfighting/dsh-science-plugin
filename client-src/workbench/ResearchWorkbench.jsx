@@ -13,11 +13,11 @@ import { ProjectCatalog } from './ProjectCatalog.jsx'
 
 const NAV = [
   { id: 'overview', label: '概览' },
+  { id: 'experts', label: '项目专家' },
   { id: 'catalog', label: '项目总览' },
   { id: 'paper', label: '论文主线' },
   { id: 'team', label: '团队进展' },
   { id: 'artifacts', label: '图表与成果' },
-  { id: 'experts', label: '专家配置' },
 ]
 
 function WorkbenchMark() {
@@ -91,7 +91,7 @@ export function ResearchWorkbench({ services }) {
           {page === 'paper' && <PaperSpinePage view={currentView} raw={state.raw} onAction={openAction} onConfirm={confirmResult} busy={busy} onOpenConversation={openConversation} onNavigate={setPage} />}
           {page === 'team' && <TeamProgressPage view={currentView} openMemberSession={services?.openMemberSession} memberOpenAvailable={services?.memberOpenAvailable?.(currentView)} />}
           {page === 'artifacts' && <ArtifactsPage view={currentView} onAction={openAction} />}
-          {page === 'experts' && <ExpertSetupPage view={currentView} refresh={state.refresh} />}
+          {page === 'experts' && <ExpertSetupPage key={JSON.stringify([state.sessionId, state.projectId])} binding={state} services={services} />}
           {state.error && <div className="sci-small" style={{ marginTop: 14 }} role="status">状态刷新失败，正在显示上一次成功读取的数据：{state.error}</div>}
         </div>}
       </main>

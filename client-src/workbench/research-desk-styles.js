@@ -60,4 +60,6 @@ export const RESEARCH_DESK_CSS = `
 @media(hover:hover){.sci-desk-tile:hover{transform:translateY(-2px);box-shadow:0 8px 20px #0000000e}}
 @media(max-width:760px){.sci-desk-hero[data-active=true]{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.sci-desk .sci-desk-scene,.sci-desk .sci-button,.sci-desk .sci-desk-tile{animation:none;transition:none;transform:none}}
+
+.sci-project-experts{max-width:960px;margin:auto}.sci-expert-form,.sci-expert-row,.sci-expert-presets{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}.sci-expert-row{justify-content:space-between;overflow-wrap:anywhere}.sci-expert-form input,.sci-expert-form select{padding:7px 9px;max-width:100%;color:inherit;background:var(--sci-card);border:1px solid var(--sci-border);border-radius:6px}.sci-expert-form input{flex:1;min-width:12em}.sci-expert-presets button{display:grid;text-align:left}.sci-expert-presets small{font-size:.8em;font-weight:400}
 `

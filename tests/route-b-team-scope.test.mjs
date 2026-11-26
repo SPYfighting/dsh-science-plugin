@@ -1,3 +1,4 @@
+import { changeExpertConfig } from '../lib/project-experts.js'
 // 路线 B T0 红灯：团队成员与任务必须按项目（root session）作用域工作。
 // 依据：验收 R1 B4 / 任务书 T2；设计真源 §7.2（一个工作区可以有多个项目、每个项目
 // 独立默认编制）、§20.2（两个项目并行时状态、成员和产物不串）。
@@ -57,6 +58,10 @@ describe('T0 红灯：多项目默认团队与任务板作用域', () => {
   beforeEach(() => { resetHome() })
 
   test('第二个项目 spawn_all：同名默认成员必须各建一份，不得静默跳过', async () => {
+    for (const lead of [LEAD_A, LEAD_B]) {
+      const projectId = store.bindingOfRootSession(lead.id)?.projectId || store.createProject({ rootSessionId: lead.id, title: '测试' })
+      for (const role of DEFAULT_TEAM) changeExpertConfig(projectId, { action: 'add', role })
+    }
     const { tools, activations } = setupTeam()
 
     const first = await tools.sci_team_spawn_all.execute({}, { agent: LEAD_A })

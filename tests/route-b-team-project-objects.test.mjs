@@ -1,3 +1,4 @@
+import { changeExpertConfig } from '../lib/project-experts.js'
 // 路线 B T2 回归：团队成员与任务成为项目内对象。
 // 依据：任务书 T2 必测矩阵——A/B 同名成员 childId 不同；status 不串项目；
 // A 不能唤醒或更新 B 的任务/成员；审查任务有项目归属并被正确过滤。
@@ -123,6 +124,10 @@ describe('T2：项目内成员与任务', () => {
   })
 
   test('A/B 各自 spawn_all 得到同名成员但 childId 不同；status 不串项目', async () => {
+    for (const lead of [LEAD_A, LEAD_B]) {
+      const projectId = store.bindingOfRootSession(lead.id)?.projectId || store.createProject({ rootSessionId: lead.id, title: '测试' })
+      for (const role of DEFAULT_TEAM) changeExpertConfig(projectId, { action: 'add', role })
+    }
     const { tools } = setupTeam()
     const a = await tools.sci_team_spawn_all.execute({}, { agent: LEAD_A })
     const b = await tools.sci_team_spawn_all.execute({}, { agent: LEAD_B })
@@ -147,6 +152,10 @@ describe('T2：项目内成员与任务', () => {
   })
 
   test('A 不能跨项目唤醒成员：同名只触达本项目成员，本项目不存在的成员被拒绝', async () => {
+    for (const lead of [LEAD_A, LEAD_B]) {
+      const projectId = store.bindingOfRootSession(lead.id)?.projectId || store.createProject({ rootSessionId: lead.id, title: '测试' })
+      for (const role of DEFAULT_TEAM) changeExpertConfig(projectId, { action: 'add', role })
+    }
     const { tools, messages } = setupTeam()
     await tools.sci_team_spawn_all.execute({}, { agent: LEAD_A })
     await tools.sci_team_spawn_all.execute({}, { agent: LEAD_B })
@@ -216,6 +225,10 @@ describe('T2：项目内成员与任务', () => {
   test('审查任务带项目归属，且 /state 只投影所属项目', async () => {
     const pidA = seedProject('lead-a', 'A')
     const pidB = seedProject('lead-b', 'B')
+    for (const lead of [LEAD_A, LEAD_B]) {
+      const projectId = store.bindingOfRootSession(lead.id)?.projectId || store.createProject({ rootSessionId: lead.id, title: '测试' })
+      for (const role of DEFAULT_TEAM) changeExpertConfig(projectId, { action: 'add', role })
+    }
     const { tools } = setupTeam()
     await tools.sci_team_spawn_all.execute({}, { agent: LEAD_A })
     await tools.sci_team_spawn_all.execute({}, { agent: LEAD_B })

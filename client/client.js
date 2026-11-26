@@ -204,6 +204,7 @@ function WorkspaceOverview({ view, raw, busy, onAction, onNavigate, onOpenConver
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "aria-hidden": "true", children: "\u2197" })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Button, { disabled: busy, onClick: () => onAction(hasProject ? "literature" : "import_results"), children: hasProject ? "\u63A2\u7D22\u6587\u732E" : "\u6574\u7406\u5DF2\u6709\u7ED3\u679C" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Button, { onClick: () => onNavigate("experts"), children: "\u914D\u7F6E\u9879\u76EE\u4E13\u5BB6" }),
           onOpenCatalog && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Button, { disabled: busy, onClick: onOpenCatalog, children: "\u67E5\u770B\u5168\u90E8\u9879\u76EE" })
         ] })
       ] }),
@@ -334,6 +335,8 @@ var RESEARCH_DESK_CSS = `
 @media(hover:hover){.sci-desk-tile:hover{transform:translateY(-2px);box-shadow:0 8px 20px #0000000e}}
 @media(max-width:760px){.sci-desk-hero[data-active=true]{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.sci-desk .sci-desk-scene,.sci-desk .sci-button,.sci-desk .sci-desk-tile{animation:none;transition:none;transform:none}}
+
+.sci-project-experts{max-width:960px;margin:auto}.sci-expert-form,.sci-expert-row,.sci-expert-presets{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}.sci-expert-row{justify-content:space-between;overflow-wrap:anywhere}.sci-expert-form input,.sci-expert-form select{padding:7px 9px;max-width:100%;color:inherit;background:var(--sci-card);border:1px solid var(--sci-border);border-radius:6px}.sci-expert-form input{flex:1;min-width:12em}.sci-expert-presets button{display:grid;text-align:left}.sci-expert-presets small{font-size:.8em;font-weight:400}
 `;
 
 // client-src/workbench/PaperSpinePage.jsx
@@ -915,182 +918,144 @@ function ArtifactsPage({ view, onAction }) {
 // client-src/workbench/ExpertSetupPage.jsx
 var import_react7 = __toESM(require("react"), 1);
 var import_jsx_runtime6 = require("react/jsx-runtime");
-var tool = (name, category) => ({
-  name,
-  category,
-  environment: "\u672C\u673A\u8FD0\u884C\u4F9D\u8D56\u672A\u63A2\u6D4B\uFF1B\u9700\u6309\u5DE5\u5177\u5B98\u65B9\u6587\u6863\u6838\u5BF9\u3002",
-  status: "\u672C\u673A\u5B89\u88C5\u72B6\u6001\u4E0E\u7248\u672C\u672A\u68C0\u6D4B\u3002"
-});
-var ROLE_INFO = {
-  simulator: { title: "\u8BA1\u7B97\u6A21\u62DF\u4E13\u5BB6", purpose: "\u5206\u5B50\u52A8\u529B\u5B66\u3001\u5206\u5B50\u5BF9\u63A5\u4E0E\u86CB\u767D\u590D\u5408\u7269\u5EFA\u6A21\u3002", tools: [tool("GROMACS", "\u5206\u5B50\u52A8\u529B\u5B66\u8F6F\u4EF6"), tool("OpenMM", "\u5206\u5B50\u52A8\u529B\u5B66\u6846\u67B6"), tool("NAMD", "\u5206\u5B50\u52A8\u529B\u5B66\u8F6F\u4EF6"), tool("Boltz", "\u86CB\u767D\u8D28\u7ED3\u6784/\u590D\u5408\u7269\u9884\u6D4B"), tool("AutoDock Vina", "\u5206\u5B50\u5BF9\u63A5\u8F6F\u4EF6"), tool("ORCA", "\u91CF\u5B50\u5316\u5B66\u8F6F\u4EF6"), tool("Quantum ESPRESSO", "\u7B2C\u4E00\u6027\u539F\u7406\u8BA1\u7B97\u8F6F\u4EF6")] },
-  trainer: { title: "\u6A21\u578B\u8BAD\u7EC3\u4E13\u5BB6", purpose: "\u86CB\u767D\u8D28\u8BED\u8A00\u6A21\u578B\u3001\u53EF\u590D\u73B0\u8BAD\u7EC3\u4E0E\u53C2\u6570\u9AD8\u6548\u5FAE\u8C03\u3002", tools: [tool("ESM / ESMC", "\u86CB\u767D\u8D28\u8BED\u8A00\u6A21\u578B"), tool("ProtT5", "\u86CB\u767D\u8D28\u8BED\u8A00\u6A21\u578B"), tool("PyTorch Lightning", "\u6DF1\u5EA6\u5B66\u4E60\u8BAD\u7EC3\u6846\u67B6"), tool("Hugging Face / PEFT", "\u6A21\u578B\u4E0E\u53C2\u6570\u9AD8\u6548\u5FAE\u8C03\u5DE5\u5177")] },
-  "figure-expert": { title: "\u79D1\u7814\u7ED8\u56FE\u4E13\u5BB6", purpose: "\u7EC4\u5B66\u7EDF\u8BA1\u56FE\u3001\u7ED3\u6784\u4E0E\u4E92\u4F5C\u56FE\u3001\u673A\u5236\u793A\u610F\u56FE\u548C\u6295\u7A3F\u524D\u68C0\u67E5\u3002", tools: [tool("Matplotlib / Seaborn / Plotly", "\u6570\u636E\u53EF\u89C6\u5316\u5E93"), tool("\u7ED3\u6784\u89C6\u56FE\u4E0E\u4E92\u4F5C\u56FE", "\u7ED3\u6784\u5206\u6790\u4E0E\u7ED8\u56FE\u5DE5\u5177"), tool("\u53EF\u7F16\u8F91 SVG / PDF", "\u77E2\u91CF\u56FE\u683C\u5F0F")] },
-  analyst: { title: "\u6570\u636E\u5206\u6790\u5E08", purpose: "NGS\u3001\u5355\u7EC6\u80DE\u3001\u7A7A\u95F4\u7EC4\u5B66\u3001\u86CB\u767D\u8D28\u7EC4\u548C\u5E38\u89C4\u751F\u7269\u7EDF\u8BA1\u3002", tools: [tool("FastQC / MultiQC", "\u6D4B\u5E8F\u8D28\u63A7\u5DE5\u5177"), tool("DESeq2 / edgeR", "\u5DEE\u5F02\u8868\u8FBE\u5206\u6790\u5305"), tool("Scanpy / Seurat", "\u5355\u7EC6\u80DE\u5206\u6790\u5DE5\u5177"), tool("R / Python", "\u7EDF\u8BA1\u4E0E\u811A\u672C\u8BED\u8A00")] },
-  "literature-scout": { title: "\u6587\u732E\u8C03\u7814\u4E13\u5458", purpose: "\u7CFB\u7EDF\u68C0\u7D22\u3001\u7B5B\u9009\u548C\u6838\u5BF9\u7814\u7A76\u8BC1\u636E\u3002", tools: [tool("PubMed / Europe PMC", "\u6587\u732E\u6570\u636E\u5E93"), tool("Crossref / DOI \u6821\u9A8C", "\u4E66\u76EE\u4E0E\u6807\u8BC6\u7B26\u670D\u52A1"), tool("\u7CFB\u7EDF\u7EFC\u8FF0\u8BB0\u5F55", "\u8BC1\u636E\u6574\u7406\u65B9\u6CD5")] },
-  "topic-designer": { title: "\u8BFE\u9898\u8BBE\u8BA1\u4E13\u5BB6", purpose: "\u7814\u7A76\u95EE\u9898\u3001\u5B9E\u9A8C\u8BBE\u8BA1\u3001\u5173\u952E\u5BF9\u7167\u548C\u53EF\u68C0\u9A8C\u5047\u8BBE\u3002", tools: [tool("\u7814\u7A76\u8BBE\u8BA1\u4E0E\u529F\u6548\u5206\u6790", "\u7EDF\u8BA1\u8BBE\u8BA1\u65B9\u6CD5"), tool("\u56E0\u679C\u56FE\u4E0E\u53CD\u8BC1\u6761\u4EF6", "\u56E0\u679C\u63A8\u7406\u65B9\u6CD5"), tool("\u5B9E\u9A8C\u53EF\u884C\u6027\u8BC4\u4F30", "\u65B9\u6848\u8BC4\u4F30\u65B9\u6CD5")] },
-  writer: { title: "\u6587\u7AE0\u64B0\u5199\u4E13\u5BB6", purpose: "\u56F4\u7ED5\u5DF2\u786E\u8BA4\u7ED3\u679C\u7EC4\u7EC7\u7A3F\u4EF6\uFF0C\u4E0D\u8865\u9020\u8BC1\u636E\u3002", tools: [tool("\u8BBA\u6587\u7ED3\u6784\u4E0E\u671F\u520A\u683C\u5F0F", "\u5199\u4F5C\u89C4\u8303"), tool("\u5F15\u6587\u548C\u56FE\u8868\u5B9A\u4F4D", "\u7A3F\u4EF6\u7EC4\u7EC7\u65B9\u6CD5"), tool("\u4E2D\u82F1\u6587\u7A3F\u4EF6", "\u5B66\u672F\u5199\u4F5C")] },
-  reviewer: { title: "\u79D1\u7814\u5BA1\u67E5\u4E13\u5BB6", purpose: "\u68C0\u67E5\u4E3B\u5F20\u3001\u8BC1\u636E\u3001\u7EDF\u8BA1\u548C\u62A5\u544A\u89C4\u8303\u4E4B\u95F4\u7684\u4E00\u81F4\u6027\u3002", tools: [tool("\u8BC1\u636E\u94FE\u5BA1\u67E5", "\u8BC1\u636E\u6838\u67E5\u65B9\u6CD5"), tool("\u504F\u501A\u4E0E\u5C40\u9650\u6027\u6838\u67E5", "\u7814\u7A76\u8D28\u91CF\u8BC4\u4F30"), tool("\u6295\u7A3F\u524D\u6E05\u5355", "\u62A5\u544A\u89C4\u8303\u68C0\u67E5")] },
-  presentation: { title: "\u6C47\u62A5 PPT \u4E13\u5BB6", purpose: "\u5C06\u5DF2\u786E\u8BA4\u7ED3\u679C\u6574\u7406\u6210\u53EF\u8BB2\u8FF0\u7684\u5B66\u672F\u6C47\u62A5\u3002", tools: [tool("\u4F1A\u8BAE\u6C47\u62A5\u7ED3\u6784", "\u6C47\u62A5\u8BBE\u8BA1"), tool("\u7ED3\u679C\u56FE\u8868\u7F16\u6392", "\u79D1\u5B66\u4F20\u64AD"), tool("\u7B54\u8FA9\u53D9\u4E8B", "\u6C47\u62A5\u8BBE\u8BA1")] }
-};
-function installedFor(installed, role2, catalogId) {
-  return (installed?.[role2] || []).find((item) => item.catalogId === catalogId || item.name === catalogId);
+async function request(binding, payload, signal) {
+  const response = await fetch("/plugins/dsh-science/skill-manage", {
+    method: "POST",
+    credentials: "same-origin",
+    signal,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sessionId: binding.sessionId, expectedProjectId: binding.projectId, ...payload })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "\u65E0\u6CD5\u8BFB\u53D6\u9879\u76EE\u4E13\u5BB6");
+  return data;
 }
-function ExpertSetupPage({ view, refresh }) {
-  const [busy, setBusy] = (0, import_react7.useState)(null);
-  const [notice, setNotice] = (0, import_react7.useState)(null);
-  const skillMenu = view.experts.skillMenu || {};
-  const catalog = skillMenu.catalog || {};
-  const installed = skillMenu.installed || {};
-  const roles = Object.keys(ROLE_INFO);
-  const candidateCards = (0, import_react7.useMemo)(() => roles.flatMap((role2) => (catalog[role2] || []).map((entry) => ({ ...entry, role: role2 }))), [catalog]);
-  const catalogEntryKeys = new Set(candidateCards.map((entry) => `${entry.role}:${entry.id}`));
-  const customInstalled = roles.flatMap((role2) => (installed[role2] || []).map((entry) => ({ ...entry, role: role2, id: entry.name }))).filter((entry) => !catalogEntryKeys.has(`${entry.role}:${entry.catalogId || entry.name}`));
-  const manageSkill = async (entry, action) => {
-    const key = `${entry.role}:${entry.id}`;
-    setBusy(key);
-    setNotice(null);
+function Expert({ role: role2, data, act, busy, openManager }) {
+  const [kind, setKind] = (0, import_react7.useState)("global");
+  const [value, setValue] = (0, import_react7.useState)("");
+  const links = data.config.links[role2] || [];
+  const local = data.installed[role2] || [];
+  const options = kind === "global" ? data.global.map((s) => s.name) : data.legacy[role2] || [];
+  const typeLabel = { global: "\u5168\u5C40 Skill", legacy: "\u65E7\u7248\u6280\u80FD", local: "\u9879\u76EE Skill", plugin: "DSH \u63D2\u4EF6" };
+  const choose = kind === "global" || kind === "legacy";
+  const submit = async (event) => {
+    event.preventDefault();
+    const ok = await act(kind === "local" ? { action: "install", role: role2, repoUrl: value.trim() } : { action: "link", role: role2, kind, value: value.trim() });
+    if (ok) setValue("");
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Panel, { title: data.roles[role2]?.label || role2, action: data.writable && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, quiet: true, disabled: busy, onClick: () => act({ action: "hide", role: role2 }), children: "\u79FB\u51FA\u9879\u76EE\u4E13\u5BB6" }), children: [
+    links.map((l) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-expert-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { children: [
+        typeLabel[l.kind],
+        " \xB7 ",
+        l.kind === "plugin" ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("a", { href: l.value, target: "_blank", rel: "noreferrer", children: l.value }) : l.value
+      ] }),
+      data.writable && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, quiet: true, disabled: busy, onClick: () => act({ action: "unlink", role: role2, kind: l.kind, value: l.value }), children: "\u53D6\u6D88\u5173\u8054" })
+    ] }, l.kind + "/" + l.value)),
+    local.map((s) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-expert-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { children: [
+        "\u9879\u76EE Skill \xB7 ",
+        s.name,
+        s.warn ? "\uFF08\u4ED3\u5E93\u4E2D\u672A\u53D1\u73B0 SKILL.md\uFF09" : ""
+      ] }),
+      data.writable && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, quiet: true, disabled: busy, onClick: () => act({ action: "remove", role: role2, name: s.name }), children: "\u4ECE\u672C\u9879\u76EE\u5378\u8F7D" })
+    ] }, s.name)),
+    data.writable && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "sci-expert-form", onSubmit: submit, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("select", { "aria-label": "\u6269\u5C55\u7C7B\u578B", value: kind, onChange: (e) => {
+        setKind(e.target.value);
+        setValue("");
+      }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "global", children: "\u5F15\u7528\u5168\u5C40 Skill" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "local", children: "\u5B89\u88C5\u9879\u76EE Skill" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "plugin", children: "\u5173\u8054 DSH \u63D2\u4EF6" }),
+        !!data.legacy[role2]?.length && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "legacy", children: "\u5F15\u7528\u65E7\u7248\u89D2\u8272\u6280\u80FD" })
+      ] }),
+      choose ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("select", { "aria-label": "\u9009\u62E9\u6280\u80FD", value, onChange: (e) => setValue(e.target.value), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "", children: options.length ? "\u9009\u62E9\u5DF2\u5B89\u88C5\u7684\u6280\u80FD" : "\u6682\u65E0\u53EF\u5F15\u7528\u7684\u6280\u80FD" }),
+        options.map((n) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { children: n }, n))
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { "aria-label": "\u6269\u5C55\u6765\u6E90\u94FE\u63A5", type: "url", required: true, value, placeholder: kind === "plugin" ? "npm \u5305\u6216 GitHub / GitLab \u4ED3\u5E93\u94FE\u63A5" : "GitHub / GitLab \u4ED3\u5E93\u9996\u9875\u94FE\u63A5", onChange: (e) => setValue(e.target.value) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, type: "submit", disabled: busy || !value.trim(), children: kind === "local" ? "\u5B89\u88C5\u5230\u9879\u76EE" : "\u5173\u8054" })
+    ] }),
+    (kind === "plugin" || links.some((l) => l.kind === "plugin")) && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("p", { className: "sci-small", children: [
+      "\u9879\u76EE\u4FDD\u5B58\u63D2\u4EF6\u6765\u6E90\u3002\u5B89\u88C5\u548C\u542F\u7528\u4F1A\u4F5C\u7528\u4E8E\u5F53\u524D DSH \u914D\u7F6E\u3002 ",
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { quiet: true, small: true, onClick: openManager, children: "\u6253\u5F00 DSH \u63D2\u4EF6\u7BA1\u7406\u5668" })
+    ] })
+  ] });
+}
+function ExpertSetupPage({ binding, services }) {
+  const [data, setData] = (0, import_react7.useState)(null);
+  const [busy, setBusy] = (0, import_react7.useState)(false);
+  const [error, setError] = (0, import_react7.useState)("");
+  const [role2, setRole] = (0, import_react7.useState)("");
+  const [retry, setRetry] = (0, import_react7.useState)(0);
+  (0, import_react7.useEffect)(() => {
+    if (!binding.projectId) return;
+    const abort = new AbortController();
+    request(binding, { action: "inspect" }, abort.signal).then(setData).catch((e) => {
+      if (!abort.signal.aborted) setError(e.message);
+    });
+    return () => abort.abort();
+  }, [binding.sessionId, binding.projectId, retry]);
+  const act = async (payload) => {
+    setBusy(true);
+    setError("");
     try {
-      const payloadBody = action === "remove" ? { action, role: entry.role, name: entry.id } : { action, role: entry.role, repoId: entry.id };
-      const response = await fetch("/plugins/dsh-science/skill-manage", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(payloadBody) });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.ok === false) throw new Error(payload.error || `HTTP ${response.status}`);
-      setNotice({ tone: "success", text: action === "install" ? `${entry.name} \u5DF2\u5B89\u88C5\u3002` : `${entry.name} \u5DF2\u79FB\u9664\u3002` });
-      await refresh();
-    } catch (error) {
-      setNotice({ tone: "error", text: `\u64CD\u4F5C\u5931\u8D25\uFF1A${error.message}` });
+      await request(binding, payload);
+      setData(await request(binding, { action: "inspect" }));
+      return true;
+    } catch (e) {
+      setError(e.message);
+      return false;
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-stack", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Panel, { title: "\u4E13\u5BB6\u80FD\u529B", subtitle: "\u672C\u8868\u662F\u73AF\u5883\u5DE5\u5177\u5019\u9009\u8BF4\u660E\uFF08\u53EA\u8BFB\uFF09\uFF1A\u8FD0\u884C\u4F9D\u8D56\u4E0E\u672C\u673A\u7248\u672C\u9700\u6309\u5DE5\u5177\u5B98\u65B9\u6587\u6863\u5B89\u88C5\u540E\u81EA\u884C\u6838\u5BF9\u2014\u2014\u672C\u63D2\u4EF6\u4E0D\u63A2\u6D4B\u5B89\u88C5\u72B6\u6001\uFF0C\u4E5F\u4E0D\u628A\u300C\u8BF4\u660E\u5B58\u5728\u300D\u5F53\u4F5C\u300C\u5DF2\u5B89\u88C5\u300D\u3002\u53EF\u5B89\u88C5\u7684\u6280\u80FD\u589E\u5F3A\u89C1\u4E0B\u65B9\u300C\u53EF\u9009\u6280\u80FD\u589E\u5F3A\u300D\u3002", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-expert-grid", children: roles.map((role2) => {
-      const info = ROLE_INFO[role2];
-      const member = view.experts.roles?.[role2];
-      const installedCount = (installed[role2] || []).length;
-      return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("article", { className: "sci-expert-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-result-top", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: member?.label || info.title }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: info.purpose })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Badge, { children: installedCount > 0 ? `${installedCount} \u9879\u6269\u5C55\u5DF2\u5B89\u88C5` : "\u65E0\u6269\u5C55" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-tool-list", "aria-label": `${info.title}\u73AF\u5883\u5DE5\u5177\u5019\u9009`, children: info.tools.map((item) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-tool-row", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: item.name }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { children: [
-            "\u7C7B\u522B\uFF1A",
-            item.category
-          ] })
-        ] }, item.name)) })
-      ] }, role2);
-    }) }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Panel, { title: "\u53EF\u9009\u6280\u80FD\u589E\u5F3A", subtitle: "\u6280\u80FD\u53EA\u63D0\u4F9B\u64CD\u4F5C\u8BF4\u660E\u3002\u8FD0\u884C\u4F9D\u8D56\u3001\u6A21\u578B\u6743\u91CD\u3001\u5916\u90E8 API \u548C\u6570\u636E\u8BB8\u53EF\u4ECD\u9700\u5355\u72EC\u6838\u5BF9\u3002", children: [
-      notice && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(StatusMessage, { tone: notice.tone === "error" ? "error" : "success", children: notice.text }),
-      candidateCards.length ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-expert-grid", children: candidateCards.map((entry) => {
-        const installedEntry = installedFor(installed, entry.role, entry.id);
-        const canInstall = entry.installable === true && Boolean(entry.gitRef);
-        return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("article", { className: "sci-expert-card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-result-top", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: entry.name }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: entry.description })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Badge, { tone: installedEntry ? "good" : canInstall ? "default" : "warn", children: installedEntry ? "\u5DF2\u5B89\u88C5" : canInstall ? "\u53EF\u5B89\u88C5\u6280\u80FD" : "\u73AF\u5883\u5DE5\u5177 / \u5F85\u6838\u9A8C" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u89D2\u8272\uFF1A" }),
-            ROLE_INFO[entry.role]?.title || entry.role
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u8FD0\u884C\u73AF\u5883\u4E0E\u4F9D\u8D56\uFF1A" }),
-            entry.environment || "\u672A\u8BB0\u5F55\uFF0C\u9700\u6838\u5BF9\u4ED3\u5E93\u8BF4\u660E\u3002"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u6765\u6E90\u4ED3\u5E93\uFF1A" }),
-            entry.repo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("a", { href: entry.repo, target: "_blank", rel: "noreferrer", children: entry.repo }) : "\u672A\u8BB0\u5F55"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u8BB8\u53EF\u8BC1\uFF1A" }),
-            entry.license || "\u672A\u6838\u9A8C"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "SKILL.md\uFF1A" }),
-            entry.hasSkillMd ? `\u5DF2\u6838\u9A8C \xB7 ${entry.subdir ? `${entry.subdir}/SKILL.md` : "SKILL.md"}` : "\u672A\u6838\u9A8C\u6216\u672A\u53D1\u73B0"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u5B89\u88C5\u72B6\u6001\uFF1A" }),
-            installedEntry ? `\u5DF2\u5B89\u88C5${installedEntry.dir ? ` \xB7 ${installedEntry.dir}` : ""}` : "\u5C1A\u672A\u5B89\u88C5"
-          ] }),
-          entry.gitRef && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u56FA\u5B9A\u7248\u672C\uFF1A" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("code", { children: entry.gitRef })
-          ] }),
-          !entry.gitRef && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-risk", children: "\u5F53\u524D\u6CA1\u6709\u5DF2\u6838\u5B9E\u7684\u56FA\u5B9A\u63D0\u4EA4\uFF0C\u5B89\u88C5\u5165\u53E3\u6682\u4E0D\u53EF\u7528\u3002" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-risk", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u4F7F\u7528\u98CE\u9669\uFF1A" }),
-            entry.risk || "\u98CE\u9669\u4FE1\u606F\u672A\u8BB0\u5F55\uFF1B\u5B89\u88C5\u524D\u9700\u81EA\u884C\u6838\u5BF9\u4F9D\u8D56\u3001\u6570\u636E\u5916\u4F20\u548C\u8BB8\u53EF\u8FB9\u754C\u3002"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-result-actions", children: installedEntry ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, onClick: () => manageSkill(entry, "remove"), disabled: busy === `${entry.role}:${entry.id}`, children: "\u79FB\u9664\u6269\u5C55" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, primary: true, onClick: () => manageSkill(entry, "install"), disabled: !canInstall || busy === `${entry.role}:${entry.id}`, children: busy === `${entry.role}:${entry.id}` ? "\u5904\u7406\u4E2D\u2026" : canInstall ? "\u5B89\u88C5\u5230\u8BE5\u4E13\u5BB6" : "\u6682\u4E0D\u53EF\u5B89\u88C5" }) })
-        ] }, `${entry.role}:${entry.id}`);
-      }) }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-small", children: "\u76EE\u524D\u6CA1\u6709\u56FA\u5B9A\u7248\u672C\u4E14\u53EF\u76F4\u63A5\u5B89\u88C5\u7684\u6280\u80FD\u6761\u76EE\u3002\u73AF\u5883\u5DE5\u5177\u5019\u9009\u4ECD\u53EF\u7531\u8BA1\u7B97\u4E13\u5BB6\u6309\u5B98\u65B9\u6587\u6863\u914D\u7F6E\u3002" })
+  const bind = async () => {
+    setBusy(true);
+    try {
+      const r = await binding.act({ actionId: "project.ensure-binding", commandId: crypto.randomUUID(), payload: {} });
+      if (r.status !== 200) throw new Error(r.body?.reason || "\u521B\u5EFA\u9879\u76EE\u5931\u8D25");
+      await binding.refresh();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const openManager = () => {
+    if (!services.openPluginManager?.()) setError("\u8BF7\u4ECE DSH \u8BBE\u7F6E\u6253\u5F00\u300C\u63D2\u4EF6\u300D\u7BA1\u7406\u9875\u9762\u3002");
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-project-experts", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { children: "\u9879\u76EE\u4E13\u5BB6" }),
+    error && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(StatusMessage, { tone: "error", children: [
+      error,
+      " ",
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, onClick: () => {
+        setError("");
+        setRetry(retry + 1);
+      }, children: "\u91CD\u65B0\u8BFB\u53D6" })
     ] }),
-    customInstalled.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Panel, { title: "\u5DF2\u5B89\u88C5\u7684\u81EA\u5B9A\u4E49\u6280\u80FD", subtitle: "\u81EA\u5B9A\u4E49\u4ED3\u5E93\u4E0D\u4F1A\u81EA\u52A8\u83B7\u5F97\u4F9D\u8D56\u6216\u98CE\u9669\u80CC\u4E66\uFF1B\u8BF7\u6309\u4ED3\u5E93\u6765\u6E90\u9010\u9879\u6838\u5BF9\u3002", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-expert-grid", children: customInstalled.map((entry) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("article", { className: "sci-expert-card", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-result-top", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: entry.name }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: ROLE_INFO[entry.role]?.title || entry.role })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Badge, { tone: "good", children: "\u5DF2\u5B89\u88C5" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u8FD0\u884C\u73AF\u5883\u4E0E\u4F9D\u8D56\uFF1A" }),
-        entry.environment || "\u672A\u8BB0\u5F55"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u6765\u6E90\u4ED3\u5E93\uFF1A" }),
-        entry.repo ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("a", { href: entry.repo, target: "_blank", rel: "noreferrer", children: entry.repo }) : "\u672A\u8BB0\u5F55"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u8BB8\u53EF\u8BC1\uFF1A" }),
-        entry.license || "\u672A\u6838\u9A8C"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "SKILL.md\uFF1A" }),
-        entry.hasSkillMd ? `\u5DF2\u53D1\u73B0 \xB7 ${(entry.skillMdPaths || []).join("\uFF1B") || entry.dir}` : "\u672A\u53D1\u73B0\uFF1B\u76EE\u5F55\u53EA\u767B\u8BB0\u4E86\u8DEF\u5F84"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u5B89\u88C5\u4F4D\u7F6E\uFF1A" }),
-        entry.dir || "\u672A\u8BB0\u5F55"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-risk", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u4F7F\u7528\u98CE\u9669\uFF1A" }),
-        entry.risk || "\u5C1A\u672A\u6838\u9A8C\uFF1B\u4F7F\u7528\u524D\u9700\u68C0\u67E5\u4ED3\u5E93\u8BF4\u660E\u3001\u6267\u884C\u547D\u4EE4\u3001\u4F9D\u8D56\u8BB8\u53EF\u548C\u6570\u636E\u5916\u4F20\u8FB9\u754C\u3002"
-      ] }),
-      entry.warn && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-risk", children: "\u5B89\u88C5\u8BB0\u5F55\u6807\u8BB0\uFF1A\u672A\u53D1\u73B0\u6807\u51C6 SKILL.md\u3002" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-result-actions", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, onClick: () => manageSkill(entry, "remove"), disabled: busy === `${entry.role}:${entry.id}`, children: busy === `${entry.role}:${entry.id}` ? "\u5904\u7406\u4E2D\u2026" : "\u79FB\u9664\u6269\u5C55" }) })
-    ] }, `${entry.role}:${entry.id}`)) }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Panel, { title: "\u72EC\u7ACB\u96C6\u6210\u4E0E\u6570\u636E\u8FB9\u754C", subtitle: "\u4EE5\u4E0B\u80FD\u529B\u9700\u8981\u5355\u72EC\u5B89\u88C5\u6216\u5916\u90E8\u670D\u52A1\uFF0C\u4E0D\u4F1A\u4F5C\u4E3A\u672C\u5730\u6280\u80FD\u4F2A\u88C5\u6210\u4E00\u952E\u529F\u80FD\u3002", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-expert-grid", children: (skillMenu.integrations || []).map((integration) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("article", { className: "sci-expert-card", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: integration.name }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: integration.description }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Badge, { tone: integration.tone || "default", children: integration.status }),
-      integration.environment && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u73AF\u5883/\u4F9D\u8D56\uFF1A" }),
-        integration.environment
-      ] }),
-      integration.license && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u8BB8\u53EF\uFF1A" }),
-        integration.license
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u6765\u6E90\uFF1A" }),
-        integration.repo || integration.sourceUrl ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("a", { href: integration.repo || integration.sourceUrl, target: "_blank", rel: "noreferrer", children: integration.repo || integration.sourceUrl }) : integration.sourcePath ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("code", { children: integration.sourcePath }) : "\u672A\u8BB0\u5F55"
-      ] }),
-      integration.installCommand && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-small", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("b", { children: "\u5B89\u88C5\u547D\u4EE4\uFF1A" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("code", { children: integration.installCommand })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-result-actions", children: integration.actionUrl ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("a", { className: "sci-button sci-button-small", href: integration.actionUrl, target: "_blank", rel: "noreferrer", children: integration.actionLabel || "\u6253\u5F00\u6765\u6E90" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "sci-small", children: integration.actionLabel || "\u5F53\u524D\u672A\u914D\u7F6E\u53EF\u6267\u884C\u8FDE\u63A5" }) })
-    ] }, integration.id)) }) })
+    !binding.projectId ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Panel, { title: "\u4E3A\u5F53\u524D\u8BFE\u9898\u914D\u7F6E\u4E13\u5BB6", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: "\u5148\u5C06\u6B64\u4F1A\u8BDD\u7ED1\u5B9A\u5230\u79D1\u7814\u9879\u76EE\uFF0C\u518D\u9009\u62E9\u9700\u8981\u7684\u4E13\u5BB6\u548C\u6269\u5C55\u3002" }),
+      binding.ref?.relationship === "unbound" && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { primary: true, disabled: busy, onClick: bind, children: "\u521B\u5EFA\u5F53\u524D\u79D1\u7814\u9879\u76EE" })
+    ] }) : !data ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { role: "status", children: "\u6B63\u5728\u8BFB\u53D6\u4E13\u5BB6\u914D\u7F6E\u2026" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Panel, { title: "\u9009\u62E9\u4E13\u5BB6", subtitle: "\u9009\u62E9\u53EA\u4FDD\u5B58\u5728\u5F53\u524D\u9879\u76EE\u3002\u6D3E\u53D1\u4EFB\u52A1\u65F6\u624D\u4F1A\u542F\u52A8\u4E13\u5BB6\u3002", children: data.writable ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "sci-expert-presets", children: Object.entries(data.presets).map(([id, p]) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(Button, { disabled: busy || p.roles.every((r) => data.config.roles.includes(r)), onClick: () => act({ action: "preset", value: id }), children: [
+          p.label,
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("small", { children: p.roles.map((r) => data.roles[r].label).join(" \xB7 ") })
+        ] }, id)) }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "sci-expert-form", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("select", { "aria-label": "\u6DFB\u52A0\u5355\u4E2A\u4E13\u5BB6", value: role2, onChange: (e) => setRole(e.target.value), children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "", children: "\u9009\u62E9\u5176\u4ED6\u4E13\u5BB6" }),
+            Object.entries(data.roles).filter(([id]) => !data.config.roles.includes(id)).map(([id, d]) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: id, children: d.label }, id))
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Button, { small: true, disabled: busy || !role2, onClick: async () => {
+            if (await act({ action: "add", role: role2 })) setRole("");
+          }, children: "\u6DFB\u52A0\u4E13\u5BB6" })
+        ] })
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: "\u8BF7\u5728\u9879\u76EE\u7684\u4E3B\u4F1A\u8BDD\u4FEE\u6539\u4E13\u5BB6\u914D\u7F6E\u3002" }) }),
+      data.config.roles.map((r) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Expert, { role: r, data, act, busy, openManager }, r))
+    ] })
   ] });
 }
 
@@ -1989,11 +1954,11 @@ function ProjectCatalog({ services }) {
 var import_jsx_runtime8 = require("react/jsx-runtime");
 var NAV = [
   { id: "overview", label: "\u6982\u89C8" },
+  { id: "experts", label: "\u9879\u76EE\u4E13\u5BB6" },
   { id: "catalog", label: "\u9879\u76EE\u603B\u89C8" },
   { id: "paper", label: "\u8BBA\u6587\u4E3B\u7EBF" },
   { id: "team", label: "\u56E2\u961F\u8FDB\u5C55" },
-  { id: "artifacts", label: "\u56FE\u8868\u4E0E\u6210\u679C" },
-  { id: "experts", label: "\u4E13\u5BB6\u914D\u7F6E" }
+  { id: "artifacts", label: "\u56FE\u8868\u4E0E\u6210\u679C" }
 ];
 function WorkbenchMark() {
   return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "sci-wb-mark", "aria-hidden": "true", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("svg", { width: "22", height: "22", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", children: [
@@ -2091,7 +2056,7 @@ function ResearchWorkbench({ services }) {
         page === "paper" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(PaperSpinePage, { view: currentView, raw: state.raw, onAction: openAction, onConfirm: confirmResult, busy, onOpenConversation: openConversation, onNavigate: setPage }),
         page === "team" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(TeamProgressPage, { view: currentView, openMemberSession: services?.openMemberSession, memberOpenAvailable: services?.memberOpenAvailable?.(currentView) }),
         page === "artifacts" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(ArtifactsPage, { view: currentView, onAction: openAction }),
-        page === "experts" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(ExpertSetupPage, { view: currentView, refresh: state.refresh }),
+        page === "experts" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(ExpertSetupPage, { binding: state, services }, JSON.stringify([state.sessionId, state.projectId])),
         state.error && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "sci-small", style: { marginTop: 14 }, role: "status", children: [
           "\u72B6\u6001\u5237\u65B0\u5931\u8D25\uFF0C\u6B63\u5728\u663E\u793A\u4E0A\u4E00\u6B21\u6210\u529F\u8BFB\u53D6\u7684\u6570\u636E\uFF1A",
           state.error
@@ -3336,7 +3301,19 @@ function makeServices(ctx) {
   const prepareHandoff = async (kind, target = null) => {
     return handoffToComposer({ ctx, sessionId: getSessionId(), kind, target, openConversation });
   };
-  return { getSessionId, subscribeSession, getCurrentSession, openConversation, openWorkbench, openRootSession, openMemberSession, memberOpenAvailable, prepareHandoff };
+  let manager;
+  ctx.inject?.(["pluginNavigation"], (scope) => {
+    manager = scope.pluginNavigation;
+    scope.effect(() => () => {
+      manager = void 0;
+    });
+  });
+  const openPluginManager = () => {
+    if (!manager?.openList) return false;
+    manager.openList();
+    return true;
+  };
+  return { openPluginManager, getSessionId, subscribeSession, getCurrentSession, openConversation, openWorkbench, openRootSession, openMemberSession, memberOpenAvailable, prepareHandoff };
 }
 function WorkbenchIcon({ size = 22, active = false }) {
   return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", "data-active": active || void 0, children: [

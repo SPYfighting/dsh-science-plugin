@@ -1,3 +1,4 @@
+import { changeExpertConfig, expertDirectory } from '../lib/project-experts.js'
 // dsh-science 单元测试（node --test tests/）
 // 覆盖：F-A startActivation 调用形状 / F-B parseFindings 健壮化 / SVG 可执行内容检测
 //       / 证伪阈值可配置 / blocked_by 闸门（warn|hard）/ configOf 容错
@@ -953,11 +954,9 @@ describe('Result 驱动的论文推进视图', () => {
     const view = stateViewOf({ blueprint: {}, team: {}, skillMenu: snap })
     assert.equal(view.experts.skillMenu.integrations.length, snap.integrations.length)
     const source = readFileSync(new URL('../client-src/workbench/ExpertSetupPage.jsx', import.meta.url), 'utf8')
-    assert.match(source, /类别：\{item.category\}/)
-    // M4 审图修复：重复 16 次的依赖/版本占位文案上提为分区级说明
-    assert.match(source, /运行依赖与本机版本需按工具官方文档安装后自行核对/)
-    assert.doesNotMatch(source, /环境\/依赖：\{item\.environment\}/)
-    assert.match(source, /integration\.actionLabel \|\| '当前未配置可执行连接'/)
+    assert.match(source, /安装项目 Skill/)
+    assert.match(source, /引用全局 Skill/)
+    assert.match(source, /关联 DSH 插件/)
   })
 })
 
@@ -3002,9 +3001,13 @@ describe('第九轮：技能安装/删除成功路径（本地 git 夹具注入 
     )
     const snap = skillMenuSnapshot()
     assert.deepEqual(snap.installed.analyst[0].skillNames, ['s1'])
+    const store = storeRef()
+    const projectId = store.createProject({ rootSessionId: 'test-lead', title: '技能测试' })
+    mkdirSync(expertDirectory(projectId), { recursive: true })
+    writeFileSync(join(expertDirectory(projectId), 'role-skills.json'), readFileSync(join(dataDir, 'role-skills.json')))
     const tools = {}
-    registerSkillMenuTools({ tools: { register: (d) => { tools[d.name] = d } } }, {})
-    const listed = await tools.sci_skill_installed.execute({ role: 'analyst' })
+    registerSkillMenuTools({ tools: { register: d => { tools[d.name] = d } } }, { store })
+    const listed = await tools.sci_skill_installed.execute({ role: 'analyst' }, EXPORT_EXEC)
     assert.deepEqual(listed.installed[0].skills.map((s) => s.name), ['s1'])
     const root = fixtureRepo({ 'SKILL.md': '---\nname: fresh2\n---\n' })
     const r = await install({ repoUrl: 'https://github.com/acme/fresh2', name: 'fresh2', cloneImpl: cloneFrom(root) })
@@ -3143,7 +3146,9 @@ describe('第十轮：团队编排（spawn_all / review_send）', () => {
     return { projectId: pid, resultId: r1.id }
   }
 
-  test('spawn_all：首次生成默认编制，再次调用全部跳过', async () => {
+  test('spawn_all：首次生成项目选择的编制，再次调用全部跳过', async () => {
+    const projectId = storeRef().createProject({ rootSessionId: LEAD.id, title: '测试' })
+    for (const role of DEFAULT_TEAM) changeExpertConfig(projectId, { action: 'add', role })
     const { tools, activations } = setupTeam()
     const first = await tools.sci_team_spawn_all.execute({}, { agent: LEAD })
     assert.equal(first.ok, true)
@@ -3157,6 +3162,8 @@ describe('第十轮：团队编排（spawn_all / review_send）', () => {
   })
 
   test('spawn_all：单个角色失败不影响其余成员，错误带 role', async () => {
+    const projectId = storeRef().createProject({ rootSessionId: LEAD.id, title: '测试' })
+    for (const role of DEFAULT_TEAM) changeExpertConfig(projectId, { action: 'add', role })
     const { tools } = setupTeam({
       startActivation: async (opts) => {
         if (String(opts.label).includes(':writer:')) throw new Error('boom')

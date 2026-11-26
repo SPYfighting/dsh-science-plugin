@@ -12,28 +12,38 @@
 | 会话轮次中的状态卡 | AI 调用科研工具后，本轮改变了哪些对象、从哪个工具来、是否待确认，都在回答下方折叠展示。 |
 | 确认卡片（Action Card） | 核心结论与 Result 的确认经 DSH 原生 Action Card 发起：默认同时加载 `@deepseek-ai/dsh-action-cards`（服务端 proposal/decision）与 `@deepseek-ai/dsh-client-ui-action-cards`（对话回答下方的卡片渲染），版本与当前 DSH 运行时精确一致。确认同时绑定项目 revision、对象 revision 与对象内容哈希（`expectedHash`）；目标对象被修改后旧卡失效，无关对象更新不会让卡片无故失效；退回只记录 decision，不修改论文语义。 |
 | 右侧栏"研究状态" | 卡片作战室：待你处理（未确认/受阻）→ 论文主线 → 正在工作 → 成果 → 常用技能。成果只显示当前项目已登记的关键图件摘要，不列出全局文件或审查。 |
-| 左侧栏"科研工作台" | 二级总览：论文主线、团队进展、图表与成果、专家配置四个页面，用于关系图、依赖图和配置检查；不再是开始科研的必经入口。 |
+| 左侧栏"科研工作台" | 从项目首页配置专家，查看论文主线、团队进展和图表成果。 |
+
+## 项目专家
+
+从科研工作台首页选择 **配置项目专家**。新项目从空名单开始，可以单独添加角色，也可以采用文献调研、数据分析或论文写作方案。选择方案只会加入角色。队长派工或显式启动团队时才会使用子代理。
+
+- **引用全局 Skill** 会列出当前 DSH 可供模型使用的技能。选择后，该专家在此项目内按需使用已有安装。
+- **安装项目 Skill** 接受 GitHub 或 GitLab 的仓库首页链接。文件只安装到当前项目对应专家的目录。已有旧版共享角色技能可以在对应专家下显式关联。
+- **关联 DSH 插件** 接受 npm 包或仓库链接。项目保存这条关联，安装与启用请在 DSH 官方插件管理器中完成，作用范围为当前宿主配置。
+
+移出专家会停止向其派发新工作。已完成的任务、已启动成员的记录及该专家的扩展配置会保留，重新加入后可继续使用。
 
 ## 安装与入口
 
-科研工作台 0.14.1 支持 DSH `>=0.2.2-rc.3 <0.2.3-0`，已在 `0.2.2-rc.3` 和 `0.2.2-rc.5` 的 Web 客户端验证。已安装 0.14.0 的用户也可以用下面的命令升级。
+科研工作台 0.14.2 支持 DSH `>=0.2.2-rc.3 <0.2.3-0`，已在 `0.2.2-rc.3` 和 `0.2.2-rc.5` 的 Web 客户端验证。已安装 0.14.0 的用户也可以用下面的命令升级。
 
-**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.14.1`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
+**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.14.2`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
 
 **命令行安装。** 在使用 DSH Web 的机器上运行下面一条命令，再重启正在运行的 `dsh web`。如果使用自建的配置，将 `web` 换成对应的 profile 名称。[DSH 官方插件发布与安装说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/develop/basic/publish.zh.md)
 
 ```bash
-dsh plugin --profile web add dsh-science-plugin@0.14.1
+dsh plugin --profile web add dsh-science-plugin@0.14.2
 ```
 
-**从 GitHub 安装。** 可以安装固定的源码提交，或从 [v0.14.1 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.14.1) 下载 `dsh-science-plugin-0.14.1.tgz` 后在下载目录安装。两种方式任选一种。
+**从 GitHub 安装。** 可以安装对应版本的源码，或从 [v0.14.2 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.14.2) 下载 `dsh-science-plugin-0.14.2.tgz` 后在下载目录安装。两种方式任选一种。
 
 ```bash
-# 固定 Git 提交
-dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#5ce23e5d27064b44fdd9e6f31350de2a64e34db3
+# 发布标签
+dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#v0.14.2
 
 # 已下载的发布包
-dsh plugin --profile web add ./dsh-science-plugin-0.14.1.tgz
+dsh plugin --profile web add ./dsh-science-plugin-0.14.2.tgz
 ```
 
 **在 DSH「发现」中浏览。** 在 **插件 → 实验性插件** 启用 **自定义插件索引**。打开 **发现 → 添加索引源**，粘贴下面的地址，再搜索“科研工作台”并安装。[DSH 官方索引指南](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/guide/plugin-market.zh.md)
@@ -43,6 +53,12 @@ https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.js
 ```
 
 **确认启用。** 打开会话后，输入框上方会出现“科研”技能条。左侧的“科研工作台”可查看论文主线、团队进展和图件。右侧“研究状态”中的“查看全部项目”列出当前工作区的课题，点击课题可回到对应的根会话。
+
+### 连接 SSH 计算服务器
+
+首次连接或从旧版升级后，先向服务器管理员索取对应主机密钥的 SHA-256 指纹。也可在已经验明身份的服务器控制台查看，例如运行 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256`，复制以 `SHA256:` 开头的值。请使用服务器实际提供的主机密钥类型。
+
+通过 `sci_ssh_profiles add` 保存主机、端口、用户、原有认证设置和 `profile.hostFingerprint`，核对 DSH 审批框中的主机和指纹后确认。也可在已有配置 `$DSH_HOME/dsh-science/ssh-profiles.json` 的相应主机条目补上 `hostFingerprint`。旧配置缺少指纹时无法连接；服务器换钥后，先通过同一可信渠道核对新指纹，再更新配置。
 
 ## 首次使用
 

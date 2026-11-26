@@ -83,7 +83,17 @@ function makeServices(ctx) {
   const prepareHandoff = async (kind, target = null) => {
     return handoffToComposer({ ctx, sessionId: getSessionId(), kind, target, openConversation })
   }
-  return { getSessionId, subscribeSession, getCurrentSession, openConversation, openWorkbench, openRootSession, openMemberSession, memberOpenAvailable, prepareHandoff }
+  let manager
+  ctx.inject?.(['pluginNavigation'], scope => {
+    manager = scope.pluginNavigation
+    scope.effect(() => () => { manager = undefined })
+  })
+  const openPluginManager = () => {
+    if (!manager?.openList) return false
+    manager.openList()
+    return true
+  }
+  return { openPluginManager, getSessionId, subscribeSession, getCurrentSession, openConversation, openWorkbench, openRootSession, openMemberSession, memberOpenAvailable, prepareHandoff }
 }
 
 function WorkbenchIcon({ size = 22, active = false }) {
