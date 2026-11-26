@@ -23,6 +23,18 @@
       },
       "versions": [
         {
+          "version": "0.14.3",
+          "publishTimestamp": 1795660789,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/SPYfighting/dsh-science-plugin",
+            "commit": "41abdd2cf23f9a8cdcb9d59d083f648638b78e05"
+          },
+          "engines": {
+            "dsh": ">=0.2.2-rc.3 <0.2.3-0 || >=0.2.3-alpha.2 <0.2.4-0"
+          }
+        },
+        {
           "version": "0.14.2",
           "publishTimestamp": 1795658618,
           "source": {
