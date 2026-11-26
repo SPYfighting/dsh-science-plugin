@@ -98,7 +98,7 @@ async function call(handler, path, { method = 'GET', body = null } = {}) {
       return req
     },
   }
-  await handler(req, res, new URL(path, 'http://localhost'))
+  await handler(req, res)
   return { status, body: raw ? JSON.parse(raw) : null }
 }
 

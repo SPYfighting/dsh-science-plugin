@@ -24,12 +24,15 @@ function patchRows(text) {
     const line = rawLine.trim()
     if (!line || line.startsWith('#')) continue
     const idMatch = /^-\s+id:\s*(.+)$/.exec(line)
+    const disabled = /^disabled: !!js (.+)$/.exec(line)
     const nameMatch = /^name:\s*(.+)$/.exec(line)
     if (idMatch) {
       current = { id: stripQuotes(idMatch[1]) }
       rows.push(current)
     } else if (nameMatch && current) {
       current.name = stripQuotes(nameMatch[1])
+    } else if (disabled && current) {
+      current.disabled = JSON.parse(disabled[1])
     }
   }
   return rows
@@ -55,8 +58,14 @@ describe('T0 红灯：Action Cards Host + Client 有效组合', () => {
     const client = rows.find((row) => row.name === CLIENT_ACTION_CARDS)
     assert.notEqual(host, client, 'Host 与 Client 必须是两个独立插件行')
     assert.ok(host.id && client.id && host.id !== client.id, 'Host 与 Client 需要各自稳定的插件 id')
-    assert.notEqual(host.disabled, true, 'Action Cards Host 行不得禁用')
-    assert.notEqual(client.disabled, true, 'Action Cards 客户端行不得禁用')
+    for (const row of [host, client]) {
+      const disabled = new Function('ctx', 'return ' + row.disabled)
+      const ctxOf = data => ({ [Symbol.for('cordis.entry')]: { parent: { data } } })
+      assert.equal(disabled(ctxOf(rows)), false)
+      for (const enabled of [true, false]) {
+        assert.equal(disabled(ctxOf([...rows, { name: row.name, id: 'native', disabled: !enabled }])), true)
+      }
+    }
   })
 
   test('工作台插件行按公开包名解析，确认卡使用宿主提供的配套版本', () => {

@@ -1,10 +1,11 @@
 - insert:
     - id: dsh-science
       name: dsh-science-plugin
-    # 确认卡（Action Cards）：Host 负责 proposal/decision 与 kind 注册；Client 负责在对话回答
-    # 下方渲染卡片。两者必须同时加载（官方 @deepseek-ai/dsh-personalized-recommendations
-    # bundle 同样成对声明）。使用当前 DSH 运行时提供的配套版本。
-    - id: dsh-science-action-cards
+    # Older Web profiles lack one or both card entries. Honor any host-configured
+    # entry (including disabled entries) and only supply the missing component.
+    - id: dsh-science-legacy-cards-host
       name: '@deepseek-ai/dsh-action-cards'
-    - id: dsh-science-client-ui-action-cards
+      disabled: !!js "ctx[Symbol.for('cordis.entry')].parent.data.some(row => row.name === '@deepseek-ai/dsh-action-cards' && row.id !== 'dsh-science-legacy-cards-host')"
+    - id: dsh-science-legacy-cards-client
       name: '@deepseek-ai/dsh-client-ui-action-cards'
+      disabled: !!js "ctx[Symbol.for('cordis.entry')].parent.data.some(row => row.name === '@deepseek-ai/dsh-client-ui-action-cards' && row.id !== 'dsh-science-legacy-cards-client')"

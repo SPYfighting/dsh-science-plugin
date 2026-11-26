@@ -33,5 +33,5 @@ description: 提出科研假设与研究课题思路。用户要 idea/课题/假
 需要用户确认核心主张或 Result 时，不要自行替用户确认：
 
 1. 先调用 `sci_blueprint_overview`，取项目的 `revision`、目标对象的 `revision` 与 `contentHash`。
-2. 调用 `propose_action`（action=`sci-paper-confirm`），details 填 `projectId`、`objectId`、`objectRevision`、`projectRevision`、`expectedHash`、`title`、`summary`。
+2. 在提供 `propose_action` 的 DSH 中调用该工具。在使用消息确认卡的 DSH 中，在回答末尾写一个语言标记为 `action-card` 的 JSON 代码块。两种方式都将 `action` 设为 `sci-paper-confirm`，填写非空的 `title` 和 `brief`，在 `details` 中填 `projectId`、`objectId`、`objectRevision`、`projectRevision`、`expectedHash`、`title`、`summary`。
 3. 卡片只绑定用户提案时看到的那次对象修订与内容哈希；卡片发起后语义被修改，旧卡确认会被拒绝。修改意见回到对话说明，由你更新对象后重新发起。

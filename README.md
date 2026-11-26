@@ -26,24 +26,24 @@
 
 ## 安装与入口
 
-科研工作台 0.14.2 支持 DSH `>=0.2.2-rc.3 <0.2.3-0`，已在 `0.2.2-rc.3` 和 `0.2.2-rc.5` 的 Web 客户端验证。已安装 0.14.0 的用户也可以用下面的命令升级。
+科研工作台支持 DSH 0.2.2（从 rc.3 起）和 0.2.3（从 alpha.2 起）。0.14.3 已在 rc.3、rc.5 和 alpha.2 的独立 DSH Web 配置中安装验证，覆盖项目专家方案、项目总览、科研主张确认、回执和重复点击。rc.3、rc.5 使用工具确认卡，alpha.2 复用宿主内置确认卡。已安装 0.14.0 的用户也可以用下面的命令升级。
 
-**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.14.2`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
+**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.14.3`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
 
 **命令行安装。** 在使用 DSH Web 的机器上运行下面一条命令，再重启正在运行的 `dsh web`。如果使用自建的配置，将 `web` 换成对应的 profile 名称。[DSH 官方插件发布与安装说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/develop/basic/publish.zh.md)
 
 ```bash
-dsh plugin --profile web add dsh-science-plugin@0.14.2
+dsh plugin --profile web add dsh-science-plugin@0.14.3
 ```
 
-**从 GitHub 安装。** 可以安装对应版本的源码，或从 [v0.14.2 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.14.2) 下载 `dsh-science-plugin-0.14.2.tgz` 后在下载目录安装。两种方式任选一种。
+**从 GitHub 安装。** 可以安装对应版本的源码，或从 [v0.14.3 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.14.3) 下载 `dsh-science-plugin-0.14.3.tgz` 后在下载目录安装。两种方式任选一种。
 
 ```bash
 # 发布标签
-dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#v0.14.2
+dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#v0.14.3
 
 # 已下载的发布包
-dsh plugin --profile web add ./dsh-science-plugin-0.14.2.tgz
+dsh plugin --profile web add ./dsh-science-plugin-0.14.3.tgz
 ```
 
 **在 DSH「发现」中浏览。** 在 **插件 → 实验性插件** 启用 **自定义插件索引**。打开 **发现 → 添加索引源**，粘贴下面的地址，再搜索“科研工作台”并安装。[DSH 官方索引指南](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/guide/plugin-market.zh.md)
@@ -91,8 +91,8 @@ https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.js
 
 ## 项目文档
 
-- [功能规格说明](docs/SPEC.md)（§24 起为对话优先架构）
-- [开发日志](docs/DEVLOG.md)
+- [功能规格说明](https://github.com/SPYfighting/dsh-science-plugin/blob/v0.14.3/docs/SPEC.md)（§24 起为对话优先架构）
+- [开发日志](https://github.com/SPYfighting/dsh-science-plugin/blob/v0.14.3/docs/DEVLOG.md)
 - [科研团队协作示例](docs/recipes/agent-teams-science.md)
 
 ## 设计参考

@@ -3047,7 +3047,7 @@ function useCurrentObjectRevision(sessionId, objectId) {
         const res = await fetch(`/plugins/dsh-science/project/get?sessionId=${encodeURIComponent(sessionId)}`);
         if (!alive || !res || !res.ok) return;
         const body = await res.json();
-        const paper = body && body.project && body.project.paper;
+        const paper = body?.project?.snapshot?.paper ?? body?.project?.paper;
         if (!paper) return;
         const obj = objectId === "core" ? paper.core : (paper.results || []).find((r) => r && r.id === objectId);
         const revision = obj && Number(obj.revision);
