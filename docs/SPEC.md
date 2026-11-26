@@ -70,7 +70,7 @@ dsh-science（单 npm bundle）
 
 | 工具 | 参数 | 行为 | 审批 |
 |---|---|---|---|
-| `sci_ssh_profiles` | `action: list\|add\|remove\|import`；add/remove 需 `name`；`profile`（host, username, port?, auth: agent\|key\|password, keyPath?, password?, scratch?） | 管理主机档案；import 只读解析 `~/.ssh/config` 的 Host 列表 | add/remove/import ask |
+| `sci_ssh_profiles` | `action: list\|add\|remove\|import`；add/remove 需 `name`；`profile`（host, username, port?, auth: agent\|key\|password, keyPath?, credentialsRef?, hostFingerprint?, scratch?） | 连接前校验已确认的 SHA256 主机密钥指纹；import 只读解析 `~/.ssh/config` 的 Host 列表 | add/remove/import ask |
 | `sci_ssh_probe` | `profile` | 一次性连接收集：CPU/内存/GPU(nvidia-smi)/conda|micromamba/模块命令/调度器(sbatch|qsub)/scratch 目录/磁盘余量 → 存为 profile.details（对齐 Claude Science 探测字段集，原创实现） | 免审（只读命令） |
 | `sci_ssh_exec` | `profile`, `command`, `timeout_s?=120` | 短命令执行（探测/状态类）。pre-execute ask；审批策略可按 profile 记忆 | ask |
 | `sci_job_submit` | `profile`, `name`, `script`, `mode: auto\|slurm\|direct`, `walltime_s?=1800`, `inputs?[]`, `env?` | **作业引擎**（§5）。返回 job id；作业目录 `<scratch>/dsh-sci-jobs/<name>-<ts>/` | ask（卡片显示完整脚本+主机+资源） |
