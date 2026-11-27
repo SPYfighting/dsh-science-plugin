@@ -27,12 +27,25 @@ function graphLayout(tasks) {
   return { columns, position, width, height, byId }
 }
 
+const PAGE_SIZE = 20
+
+function dependencyLabel(task) {
+  if (!task.blockedBy?.length) return ''
+  const rule = task.dependencyPolicy === 'success' ? '前置须成功' : '前置须结束'
+  return `${rule} · ${task.blockedBy.join('、')}`
+}
+
 const STATE_TONE = { completed: 'good', failed: 'bad', blocked: 'warn', in_progress: 'default', claimed: 'default', pending: 'default' }
 
 export function TeamProgressPage({ view, openMemberSession, memberOpenAvailable }) {
   const [mode, setMode] = useState('graph')
   const [memberError, setMemberError] = useState(null)
-  const tasks = view.team.tasks
+  const [requestedPage, setPage] = useState(0)
+  const allTasks = view.team.tasks
+  const pageCount = Math.max(1, Math.ceil(allTasks.length / PAGE_SIZE))
+  const page = Math.min(requestedPage, pageCount - 1)
+  const end = allTasks.length - page * PAGE_SIZE
+  const tasks = useMemo(() => allTasks.slice(Math.max(0, end - PAGE_SIZE), end), [allTasks, end])
   const layout = useMemo(() => graphLayout(tasks), [tasks])
   const openMember = async (member) => {
     try {
@@ -56,14 +69,19 @@ export function TeamProgressPage({ view, openMemberSession, memberOpenAvailable 
       </div>)}</div> : <EmptyState title="团队尚未启动">开始细化已确认的研究结果后，团队任务会显示在这里。</EmptyState>}
     </Panel>
     <Panel title="执行任务" subtitle="依赖线从上游任务指向等待它完成的任务。" action={<div className="sci-result-actions"><Button small primary={mode === 'graph'} aria-pressed={mode === 'graph'} onClick={() => setMode('graph')}>依赖图</Button><Button small primary={mode === 'list'} aria-pressed={mode === 'list'} onClick={() => setMode('list')}>列表</Button></div>}>
-      {tasks.length === 0 ? <div className="sci-small">还没有记录的执行任务。</div> : mode === 'list' ? <div className="sci-task-list">{tasks.map((task) => <div className="sci-task-row" key={task.id}><div><b>{task.subject || task.id}</b><div className="sci-small">{task.description || task.resultIds.join('、') || '未关联研究结果'}</div></div><div>{task.assignee || '未分配'}</div><Badge tone={STATE_TONE[task.status]}>{task.label}</Badge>{task.blockers.length > 0 && <div className="sci-small">阻塞：{task.blockers.join('；')}</div>}</div>)}</div> : <div className="sci-task-graph"><div className="sci-task-canvas" style={{ width: layout.width, height: layout.height }}>
+      {pageCount > 1 && <nav className="sci-result-actions" aria-label="执行任务分页">
+        <Button small disabled={page === 0} onClick={() => setPage(page - 1)}>较新任务</Button>
+        <span className="sci-small">第 {page + 1} / {pageCount} 页 · 共 {allTasks.length} 项{mode === 'graph' ? ' · 连线仅显示本页内的依赖' : ''}</span>
+        <Button small disabled={page === pageCount - 1} onClick={() => setPage(page + 1)}>较早任务</Button>
+      </nav>}
+      {tasks.length === 0 ? <div className="sci-small">还没有记录的执行任务。</div> : mode === 'list' ? <div className="sci-task-list">{tasks.map((task) => <div className="sci-task-row" key={task.id}><div><b>{task.subject || task.id}</b><div className="sci-small">{[task.id, ...task.resultIds].join(' · ')}</div>{task.blockedBy?.length > 0 && <div className="sci-small">{dependencyLabel(task)}</div>}</div><div>{task.assignee || '未分配'}</div><Badge tone={task.isBlocked ? 'warn' : STATE_TONE[task.status]}>{task.label}</Badge>{task.blockers.length > 0 && <div className="sci-small">阻塞：{task.blockers.join('；')}</div>}</div>)}</div> : <div className="sci-task-graph"><div className="sci-task-canvas" style={{ width: layout.width, height: layout.height }}>
         <svg className="sci-task-lines" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} aria-hidden="true">{tasks.flatMap((task) => (task.blockedBy || []).map((id) => {
           const from = layout.position.get(id), to = layout.position.get(task.id)
           if (!from || !to) return null
           const startX = from.x + 188, startY = from.y + 36, endX = to.x, endY = to.y + 36, bend = Math.max(22, (endX - startX) / 2)
           return <path className="sci-task-line" key={`${id}-${task.id}`} d={`M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`} markerEnd="url(#sci-arrow)" />
         }))}<defs><marker id="sci-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="none" stroke="currentColor" /></marker></defs></svg>
-        {tasks.map((task) => { const point = layout.position.get(task.id); return <div key={task.id} className="sci-task-node" style={{ left: point.x, top: point.y }}><strong>{task.subject || task.id}</strong><span>{task.assignee || '未分配'} · {task.label}</span>{task.resultIds.length > 0 && <span>{task.resultIds.join('、')}</span>}</div> })}
+        {tasks.map((task) => { const point = layout.position.get(task.id); return <div key={task.id} className="sci-task-node" title={[task.id, dependencyLabel(task)].filter(Boolean).join(' · ')} style={{ left: point.x, top: point.y }}><strong>{task.subject || task.id}</strong><span>{task.assignee || '未分配'} · {task.label}</span>{task.resultIds.length > 0 && <span>{task.resultIds.join('、')}</span>}</div> })}
       </div></div>}
     </Panel>
     {view.team.blockedTasks.length > 0 && <Panel title="受阻事项" subtitle="只列出明确的未完成依赖或被标记为阻塞的任务。"><div className="sci-task-list">{view.team.blockedTasks.map((task) => <div className="sci-task-row" key={task.id}><b>{task.subject || task.id}</b><span className="sci-small">{task.blockers.join('；')}</span><Badge tone="warn">受阻</Badge></div>)}</div></Panel>}

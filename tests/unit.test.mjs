@@ -1673,17 +1673,20 @@ describe('第四轮审核修复：malformed 状态与客户端安全归一', () 
     assert.deepEqual([...c.related].sort(), ['task-1', 'task-2'])
   })
 
-  test('hard 闸门：failed/cancelled 依赖视为终态，不再永久卡死下游', async () => {
+  test('失败或取消的前置不能为分析交付输入，结束策略允许诊断', async () => {
     writeConfig({ blockedGate: 'hard' })
     seedTeam([
       { id: 'task-1', subject: 'dep', status: 'failed', assignee: 'analyst', blockedBy: [] },
       { id: 'task-2', subject: 'dep2', status: 'cancelled', assignee: 'analyst', blockedBy: [] },
     ])
     const { tools } = teamCtx()
-    const out = await tools.sci_team_dispatch.execute(
-      { subject: '后续', task_desc: 'x', assignee: 'analyst', blocked_by: ['task-1', 'task-2'], result_id: 'res-1' },
-      exec,
-    )
+    const args = { subject: '后续', task_desc: 'x', assignee: 'analyst', blocked_by: ['task-1', 'task-2'], result_id: 'res-1' }
+    for (const blockedGate of ['warn', 'hard']) {
+      writeConfig({ blockedGate })
+      await assert.rejects(tools.sci_team_dispatch.execute(args, exec), /未成功交付.*task-1.*task-2/)
+    }
+    const out = await tools.sci_team_dispatch.execute({ ...args, dependency_policy: 'finished' }, exec)
+    assert.equal(out.task.dependencyPolicy, 'finished')
     assert.equal(out.ok, true)
     assert.deepEqual(out.dependencyGate.unresolved, [])
   })
@@ -2531,7 +2534,7 @@ describe('第八轮：工具返回 ok 契约（headless 矩阵发现）', () => 
     seedPaperState({ core: { title: 't', claim: 'c' }, results: [{ id: 'res-1', claim: 'x', confirmed: true }], root: 'test-lead' })
     writeFileSync(join(dataDir, 'team.json'), JSON.stringify({
       members: [],
-      tasks: [{ id: 'task-1', status: 'pending', resultId: null }],
+      tasks: [{ id: 'task-1', rootSessionId: 'test-lead', status: 'pending', resultId: null }],
     }), 'utf8')
     const out = alignTaskToResult({ get: () => undefined }, 'task-1', 'res-1', { store: storeRef(), exec: LEAD_EXEC })
     assert.equal(out.ok, true)
@@ -2542,7 +2545,7 @@ describe('第八轮：工具返回 ok 契约（headless 矩阵发现）', () => 
     resetState()
     seedPaperState({ core: { title: 't', claim: 'c' }, results: [{ id: 'res-1', claim: 'x', confirmed: true }], root: 'test-lead' })
     writeFileSync(join(dataDir, 'figures.json'), JSON.stringify({
-      'fig-1': { id: 'fig-1', path: 'x.png', title: 't' },
+      'fig-1': { id: 'fig-1', rootSessionId: 'test-lead', path: 'x.png', title: 't' },
     }), 'utf8')
     const out = linkFigureToResult({ get: () => undefined }, 'fig-1', 'res-1', { store: storeRef(), exec: LEAD_EXEC })
     assert.equal(out.ok, true)

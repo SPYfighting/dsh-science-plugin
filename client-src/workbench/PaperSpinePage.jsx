@@ -4,7 +4,8 @@ import { Badge, Button, EmptyState, Panel } from './components/ui.jsx'
 const READINESS_LABELS = [['scientific', '科学证据'], ['manuscript', '稿件就绪'], ['submission', '投稿就绪']]
 
 function readinessText(value) {
-  if (!value) return '待核对'
+  if (!value || value.state === 'unknown') return '待核对'
+  if (value.state === 'excluded') return '已排除'
   if (value.state === 'ready' || value.state === 'completed') return '已具备'
   if (value.state === 'in_progress') return '进行中'
   return '待完善'
@@ -34,6 +35,13 @@ function ResultCard({ result, onAction, onConfirm, busy = false }) {
     {!gatesOpen && <div className="sci-small" role="note" style={{ marginTop: 8 }}>{unconfirmedReason}</div>}
     {expanded && <div className="sci-small" style={{ marginTop: 14 }}>
       <div><b>Result 编号：</b>{result.id}　<b>修订：</b>{result.revision || 1}</div>
+      {result.claimAssessments?.length > 0 && <ul className="sci-note-list">{result.claimAssessments.map((c) => <li key={c.id}>
+        {c.text}（第 {c.revision} 版） · {({ pass: '审查通过', warn: '审查存疑', fail: '审查未通过' })[c.review?.severity] || '尚未审查'}
+        {c.review?.message && <div>{c.review.message}</div>}
+        {c.conflictReviewed && <div>已复核分歧证据 · {c.conflictingEvidenceIds.join('、')}</div>}
+        {c.evidenceIds.length > 0 && <div>本版证据 · {c.evidenceIds.join('、')}</div>}
+        {c.historicalEvidenceIds.length > 0 && <div>旧版证据 · {c.historicalEvidenceIds.join('、')}</div>}
+      </li>)}</ul>}
       {result.purpose && <div><b>目的：</b>{result.purpose}</div>}
       {result.direction && <div><b>结果方向：</b>{result.direction}</div>}
       {['data', 'code', 'figure', 'manuscript'].map((kind) => {

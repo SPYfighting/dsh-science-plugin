@@ -1,73 +1,45 @@
 ---
 name: sci-slides
-description: 科研汇报 PPT 生成规范（python-pptx，蓝图驱动）。把已有研究结果转成汇报幻灯片时使用：结构模板/页面密度纪律/16:9 版式/图表复用（优先 sci_figure_list 登记图）。生成文件放工作区 slides/ 目录。
+description: 把研究进展整理成组会、阶段汇报或答辩 PPT。适合已有结果、阶段性观察、相互矛盾的证据，以及需要组里决定下一步的课题。
 license: MIT
-metadata:
-  version: "1.0"
-  design-reference: "PPTAgent (icip-cas, MIT) / academic-ppt-skill (dream-rec, MIT) / open-ppt-skill (jinwyp, MIT)"
 ---
 
-# 科研汇报 PPT（蓝图驱动）
+# 科研组会与进展汇报
 
-## 何时用 / 不用于
+先确定听众、时长和这次组会需要讨论的问题。从当前课题的蓝图、任务回报和登记图表取材。没有绑定工作台时，用户给出的数据、图和记录也能作为输入。确认过的主张仍要对照最新证据；遇到相反结果，把差异及其适用条件放在同一页。待做的实验可以作为下一步，不能写成观察结果。
 
-用于：组会汇报、进展汇报、结题答辩准备、论文预讲——把**已有**团队结果（蓝图 + 登记图表 + 任务回报）转成幻灯片。
-不用于：编造新结果、替代论文写作（那是 sci-writing）、交互式仪表盘。
+## 从记录到汇报
 
-## 快速开始
+1. 写下这次组会最需要回答的一个问题。按实际材料选择页面：上次约定及本轮进展、关键证据及解释、未解决的分歧、下一步与需要组里决定的事项。短报告可以直接从一张结果图讲起。
+2. 每页拟一个问题或判断，记下证据出处、讲述时间和口头讲稿。结果图注明数据版本、比较对象、样本数或单位等影响读图的信息。把来自不同批次的观察分开，相关的对照安排在一起。
+3. 复用能支持该判断的原图。讨论页可以只有文字或表格。路线、仪器和机制示意图按科学含义组织为可编辑的形状和文字，保留原始绘图文件。已安装 scientific-ppt-drawing 的项目可调用其绘图和验收流程。[可编辑科研示意图 Skill](https://github.com/SPYfighting/my-academic-skills/tree/main/scientific-ppt-drawing)
+4. 把可直接讲述的内容写入每页的 notes。讲稿要说明如何读图、这次能判断什么、下一步如何区分剩余解释。来源放在图注或来源字段。结束页写清需要的决定及其依据。
 
-```bash
-# 会话工作区内跑；依赖 python-pptx（缺则 pip install python-pptx，不要静默换别的库）
-python <skill目录>/scripts/make_deck.py --out slides/demo_deck.pptx --spec spec.json
+## 生成
+
+在会话工作区运行。依赖 Python 3 与 python-pptx。登记图路径以当前工作目录为准，spec 可继续使用旧版的 cover、background、method、results、conclusion 和 backup，各段可选。
+
+```sh
+python <skill目录>/scripts/make_deck.py --spec group-meeting.json --out slides/group-meeting.pptx
 ```
 
-spec.json 字段（全部可缺省，蓝图驱动——先 `sci_blueprint_overview` + `sci_figure_list` 再填）：
+以下是**虚构的组会材料**，仅示范输入结构。实际制作时替换为项目记录、数据来源和讲稿。每个段落及每个结果对象都支持 notes。添加图件时在对应结果的 figures 数组填入实际文件路径。
 
 ```json
 {
-  "cover": { "title": "文章标题", "subtitle": "目标期刊/场合", "authors": "作者", "date": "2026-11-08" },
-  "background": { "gap_points": ["已知…", "但…"], "claim": "核心主张口语版" },
-  "method": { "one_liner": "一句话路线", "steps": ["数据", "系统", "验证"] },
-  "results": [
-    { "title": "结论式页标题", "bullets": ["图说明什么"], "figures": ["figures/fig1.png"], "source": "res-1 / fig-demo" }
-  ],
-  "conclusion": { "takeaways": ["…"], "outlook": "下一步" },
-  "backup": { "title": "统计细节", "rows": [["n", "12"], ["检验", "Welch t"]] }
+  "cover": {"title": "两个批次的测量结果能否合并？", "notes": "上次组会约定先分别看两个批次，再决定是否合并。"},
+  "results": [{
+    "title": "两个批次的变化方向相反",
+    "bullets": ["A 批误差下降，B 批上升。", "两批使用了不同的校准记录。"],
+    "source": "测量表 v2，批次 A/B",
+    "notes": "单看第一批会得出误差下降的判断。第二批出现相反方向，目前无法区分批次效应和校准差异。"
+  }],
+  "conclusion": {"takeaways": ["暂按批次分别报告。"], "outlook": "请讨论是否增设同条件复测。", "notes": "若同意复测，下一轮优先做同一样品的配对比较。"}
 }
 ```
 
-也可以 `import make_deck` 直接调 `new_deck()/add_cover()/add_result()/...` 逐页拼装（函数是骨架，页面规划按下面模板来）。
+生成器使用 16:9 白底、深蓝标题、可编辑文字及表格。中文字体为 Microsoft YaHei，英文为 Times New Roman。图按原比例放置。只填有内容的章节，找不到指定图件时先修正路径。沿用已获认可的研究图配色。
 
-## 结构模板（从蓝图反推，不自造结构）
+## 交付前
 
-封面（标题/作者/日期）→ 背景与缺口 1-2 页（从 blueprint.claim 反推：领域→已知→缺口→主张）→ 方法概览 1 页（一句话路线，参数表挪备份页）→ Results 每 result 1-2 页（claim 改结论句作页标题；登记图为主文字为辅；negative 如实一页）→ 结论与展望 1 页（≤3 条）→ 备份页 1+（Q&A 弹药：统计细节/参数表/数据来源）。
-
-页数裁决顺序：用户指定 > 蓝图 results 数决定的自然页数 > 与用户/队长商量后估计（open-kimi-ppt 机制）。
-
-## 密度纪律（硬规则，make_deck.py 已内置强制）
-
-1. **一页一论点**：页标题 = 该页结论句（陈述句，不是「结果一」）。
-2. **要点 ≤5 条/页**（脚本超限直接报错，不是静默截断）；正文每页 ≤40 字；装不下拆页或挪备份页。
-3. **图占 ≥50% 版面**：Results 页图片区固定占版面右侧 55% 宽；无图先派 figure-expert 补图登记，脚本会在图位放占位框标注「登记图路径」，**绝不拿装饰图冒充数据图**（图片必须服务页面结论）。
-4. **图表复用**：优先嵌入 sci_figure_list 登记图（path 已在工作区内，直接嵌入，不重画）。
-5. **风格统一**：16:9（13.333×7.5in）；层级字号（页标题 28-32 / 要点 18-20 / 图注 12-14pt）；红灰学术配色（主色 #C0392B + 深灰 #2C3E50，白底）；每页角标来源（res-N / fig-*）可溯源。
-
-## python-pptx 要点
-
-- **16:9**：`prs.slide_width = Inches(13.333)`、`prs.slide_height = Inches(7.5)`；页面一律用空白版式（`prs.slide_layouts[6]`）+ 自绘文本框，**母版复用**——位置/字号/色板在脚本常量里定义一次，所有页共用同一套坐标，不要每页手调。
-- **字体**：python-pptx **不能直接嵌入字体**；用常见系统字体保证兼容（脚本用 Arial + 微软雅黑，拉丁与东亚字形分开设置）；需要真嵌入时用 PowerPoint「另存为→嵌入字体」或 LibreOffice 导出 PDF 兜底。
-- **图片**：`add_picture` 传登记图 path；脚本按图区等比缩放居中，不拉伸变形。
-- **表格（备份页）**：`shapes.add_table`；统计值逐格写，不截图。
-- **校验**：生成后用 `python -c "from pptx import Presentation; print(len(Presentation('slides/x.pptx').slides._sldIdLst))"` 核对页数与规划一致。
-
-## 自检清单（回报前逐项过）
-
-- [ ] 页数与规划表一致；封面/背景/方法/Results/结论/备份齐全
-- [ ] 每页要点 ≤5、正文 ≤40 字；页标题是结论句
-- [ ] Results 页图占 ≥50% 版面；登记图路径有效（文件存在）
-- [ ] 每个数字可溯源（res-N / fig-* / 任务回报）；无占位文本残留
-- [ ] pptx 能重新打开、页数正确；文件在 slides/ 目录，路径已汇报队长（建议随后 sci_review_send scope=journal 模拟审稿）
-
-## 参考
-
-- [scripts/make_deck.py](scripts/make_deck.py)：python-pptx 最小模板脚本（封面/背景/方法/每 result 一页/结论/备份页骨架函数 + CLI）
+逐页回看数字、方向、修订和图的对应关系。重新打开成品，确认页数、图片和逐页讲稿；用 PowerPoint 或 LibreOffice 渲染页面，检查图例、混排、换行及投影时可读性。说明实际检查到哪一步。交付可编辑 PPTX，保留复现所需的规划文件、图件和来源。

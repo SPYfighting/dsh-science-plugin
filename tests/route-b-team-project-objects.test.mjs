@@ -1,3 +1,5 @@
+import { runLongStudyTasks } from './long-study-task-scenario.mjs'
+import { projectRawOf, stateViewOf } from '../client-src/workbench/state-view.js'
 import { changeExpertConfig } from '../lib/project-experts.js'
 // 路线 B T2 回归：团队成员与任务成为项目内对象。
 // 依据：任务书 T2 必测矩阵——A/B 同名成员 childId 不同；status 不串项目；
@@ -149,6 +151,36 @@ describe('T2：项目内成员与任务', () => {
     assert.equal(statusB.members.length, DEFAULT_TEAM.length)
     const aChildIds = new Set(statusA.members.map((m) => m.childId))
     assert.equal(statusB.members.some((m) => aChildIds.has(m.childId)), false, 'status B 出现了 A 的成员 childId')
+  })
+
+  test('两个长期项目累计超过 200 项仍可按项目追溯，并按派单时的依赖要求核对', async () => {
+    const projects = new Map([LEAD_A, LEAD_B].map(lead => [lead, seedProject(lead.id, lead.id)]))
+    const { tools } = setupTeam()
+    const { railTeamOf } = await import('../lib/rail-team.js')
+    const result = await runLongStudyTasks({
+      a: LEAD_A, b: LEAD_B,
+      call: (lead, name, args) => tools[name].execute(args, { agent: lead }),
+      board(lead) {
+        const projectId = projects.get(lead)
+        const ref = refOf(projectId, lead.id)
+        return stateViewOf(projectRawOf(store.snapshotOf(projectId), { ref, team: railTeamOf(ref, { store }) }))
+      },
+      setGate: blockedGate => writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ blockedGate })),
+    })
+    assert.equal(teamState().tasks.length, result.projectA + result.projectB)
+  })
+
+  test('历史任务沿用等待结束的规则，已取消和已删除的前置能正确解析', () => {
+    const snapshot = { team: { tasks: [
+      { id: 'task-1', status: 'cancelled', subject: '上游取消' },
+      { id: 'task-2', status: 'deleted', subject: '旧任务移除' },
+      { id: 'task-3', status: 'pending', blockedBy: ['task-1', 'task-2'] },
+      { id: 'task-4', status: 'pending', blockedBy: ['task-1', 'task-2'], dependencyPolicy: 'success' },
+    ] } }
+    const { team } = stateViewOf(snapshot)
+    assert.deepEqual(team.tasks.find(t => t.id === 'task-3').blockers, [])
+    assert.equal(team.tasks.find(t => t.id === 'task-4').blockers.length, 2)
+    assert.equal(team.counts.blocked, 1)
   })
 
   test('A 不能跨项目唤醒成员：同名只触达本项目成员，本项目不存在的成员被拒绝', async () => {

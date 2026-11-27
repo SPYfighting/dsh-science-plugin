@@ -26,24 +26,26 @@
 
 ## 安装与入口
 
-科研工作台支持 DSH 0.2.2（从 rc.3 起）和 0.2.3（从 alpha.2 起）。0.14.3 已在 rc.3、rc.5 和 alpha.2 的独立 DSH Web 配置中安装验证，覆盖项目专家方案、项目总览、科研主张确认、回执和重复点击。rc.3、rc.5 使用工具确认卡，alpha.2 复用宿主内置确认卡。已安装 0.14.0 的用户也可以用下面的命令升级。
+科研工作台支持 DSH 0.2.2（从 rc.3 起）和 0.2.3（从 alpha.2 起）。0.15.0 的长期课题场景在 rc.5 和 alpha.2 上验收，覆盖任务分页、主张复核、修订导出和旧项目恢复。rc.3、rc.5 使用工具确认卡，alpha.2 复用宿主内置确认卡。已安装旧版的用户可以用下面的命令升级。
 
-**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.14.3`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
+**推荐使用 DSH 自带的插件管理器。** 在桌面版或 Web 版打开 **插件 → 添加插件**，输入 `dsh-science-plugin@0.15.0`，点击 **安装 → 立即启用**。[DSH 官方插件管理器说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/packages/client/ui-plugin-manager/README.zh.md)
 
 **命令行安装。** 在使用 DSH Web 的机器上运行下面一条命令，再重启正在运行的 `dsh web`。如果使用自建的配置，将 `web` 换成对应的 profile 名称。[DSH 官方插件发布与安装说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/develop/basic/publish.zh.md)
 
 ```bash
-dsh plugin --profile web add dsh-science-plugin@0.14.3
+dsh plugin --profile web add dsh-science-plugin@0.15.0
 ```
 
-**从 GitHub 安装。** 可以安装对应版本的源码，或从 [v0.14.3 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.14.3) 下载 `dsh-science-plugin-0.14.3.tgz` 后在下载目录安装。两种方式任选一种。
+需要跟随 npm 最新稳定版时，可运行 `dsh plugin --profile web add dsh-science-plugin@latest`。已经安装的环境可在 DSH 插件管理器中升级，或重新执行安装命令。
+
+**从 GitHub 安装。** 可以安装对应版本的源码，或从 [v0.15.0 发布页](https://github.com/SPYfighting/dsh-science-plugin/releases/tag/v0.15.0) 下载 `dsh-science-plugin-0.15.0.tgz` 后在下载目录安装。两种方式任选一种。
 
 ```bash
 # 发布标签
-dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#v0.14.3
+dsh plugin --profile web add git+https://github.com/SPYfighting/dsh-science-plugin.git#v0.15.0
 
 # 已下载的发布包
-dsh plugin --profile web add ./dsh-science-plugin-0.14.3.tgz
+dsh plugin --profile web add ./dsh-science-plugin-0.15.0.tgz
 ```
 
 **在 DSH「发现」中浏览。** 在 **插件 → 实验性插件** 启用 **自定义插件索引**。打开 **发现 → 添加索引源**，粘贴下面的地址，再搜索“科研工作台”并安装。[DSH 官方索引指南](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.2-rc.5/docs/user/guide/plugin-market.zh.md)
@@ -54,6 +56,12 @@ https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.js
 
 **确认启用。** 打开会话后，输入框上方会出现“科研”技能条。左侧的“科研工作台”可查看论文主线、团队进展和图件。右侧“研究状态”中的“查看全部项目”列出当前工作区的课题，点击课题可回到对应的根会话。
 
+**项目和会话如何启用。** 插件按 DSH 宿主配置启用。该配置下的会话都能看到科研入口；模型可按任务选用内置 Skill，也可以点击按钮或输入 `/sci-slides` 等命令。按钮先把请求放进草稿，由你发送。打开目录或浏览工作台不会建立课题。显式建课题或首次写入科研项目记录后，绑定会保存；重新打开该课题的根会话可继续。一个目录允许有多个课题，所以同目录另开普通会话时，可从“查看全部项目”选回原课题。
+
+**换宿主或 Agent。** 数据、脚本、图表、导出的蓝图 Markdown 和组会 PPTX 都是普通工作区文件。只迁移工作区即可带走这些文件。工作台的精确修订、确认、绑定和团队记录另存于 DSH 数据目录。要恢复这些状态，需保留原 DSH 数据（含会话、插件数据库和台账），并在兼容宿主启用工作台。
+
+从 0.14.x 升级后，工作台按课题把新生成的记录副本写到工作区的 `.dsh-science/projects/<项目编号>/`。旧版已写入 `.dsh-science/` 顶层的文件仍保留，可能包含同一 DSH 配置下其他课题的记录。分享旧工作区时，请先核对这些历史副本。
+
 ### 连接 SSH 计算服务器
 
 首次连接或从旧版升级后，先向服务器管理员索取对应主机密钥的 SHA-256 指纹。也可在已经验明身份的服务器控制台查看，例如运行 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256`，复制以 `SHA256:` 开头的值。请使用服务器实际提供的主机密钥类型。
@@ -62,7 +70,7 @@ https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.js
 
 ## 首次使用
 
-1. 新建会话，直接说"我想研究……"。没有项目时技能条显示轻量起始卡（开始探索 / 整理已有结果 / 连接现有项目）。写入研究问题、核心或结果都会创建项目；仅查看卡片、点技能或普通聊天不会制造空项目。
+1. 新建会话，直接说"我想研究……"。没有项目时技能条显示轻量起始卡（开始探索 / 整理已有结果 / 新建科研项目）。写入研究问题、核心或结果都会创建项目；仅查看卡片、点技能或普通聊天不会制造空项目。
 2. AI 在对话中调用科研工具（`sci_blueprint_set`、`sci_result_add` 等）把研究问题、Result、证据写入项目状态；卡片随持久状态更新。
 3. 派发正式执行任务前，核心与全部目标 Result 的当前修订必须已确认（确认走 Action Card 或右栏确认按钮）；该闸门由服务端在派单前强制重算。
 4. 普通成员（子代理）只能提交提案与任务回报；只有队长/root 能整合为论文语义。普通 fork 与父项目写时复制隔离。
@@ -70,6 +78,7 @@ https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.js
 
 ## 数据与科学边界
 
+- 组会、投稿或交接时，可在对话中要求「导出当前课题蓝图」。`sci_blueprint_export` 会返回该报告的完整路径。各课题按修订保存在 `research/blueprints/<项目编号>/blueprint-r<修订号>.md`。重复导出相同内容会复用文件；如已在报告上手写批注，重新生成的报告会另存。旧路径 `research/blueprint-report.md` 保留原稿，若原先为空缺则保存首次导出的副本，后续请用工具返回的路径打开对应版本。
 - 项目状态保存在 `$DSH_HOME/dsh-science/science-state.sqlite`（Node 内置 SQLite，WAL + 外键 + 参数化语句）；每次写入同一事务推进修订、审计、幂等回执与变更通知。
 - 确认绑定对象修订与内容哈希；无关对象的更新不会使另一张确认失效，目标对象语义变化后旧卡/旧按钮会被服务端拒绝（结构化 conflict）。
 - 项目卡记录研究问题（question）、研究范围（scope）与来源摘要；阶段（explore/frame/execute/…）只是描述性上下文，不要求按固定步骤完成，正式派单只由 dispatch gate 校验显式 ResultIds 与确认状态。Result 不再有硬数量上限；超过 5 个给软提醒，工作台默认折叠长列表。
@@ -91,8 +100,8 @@ https://raw.githubusercontent.com/SPYfighting/dsh-science-plugin/master/index.js
 
 ## 项目文档
 
-- [功能规格说明](https://github.com/SPYfighting/dsh-science-plugin/blob/v0.14.3/docs/SPEC.md)（§24 起为对话优先架构）
-- [开发日志](https://github.com/SPYfighting/dsh-science-plugin/blob/v0.14.3/docs/DEVLOG.md)
+- [功能规格说明](https://github.com/SPYfighting/dsh-science-plugin/blob/v0.15.0/docs/SPEC.md)（§24 起为对话优先架构）
+- [开发日志](https://github.com/SPYfighting/dsh-science-plugin/blob/v0.15.0/docs/DEVLOG.md)
 - [科研团队协作示例](docs/recipes/agent-teams-science.md)
 
 ## 设计参考

@@ -14,7 +14,7 @@ export const SCIENCE_SKILLS = Object.freeze([
   { id: 'literature', label: '查文献', hint: '围绕当前问题扩展文献与流程探索', skill: 'sci-autoresearch', guide: '请围绕我的研究问题做文献与流程探索：' },
   { id: 'draw', label: '绘图', hint: '为结果建立可追溯图件', skill: 'sci-figures', guide: '请为以下研究结果建立图件方案：' },
   { id: 'write', label: '写作', hint: '围绕已确认结果起草或修改稿件', skill: 'sci-writing', guide: '请基于当前论文主线起草：' },
-  { id: 'slides', label: '汇报', hint: '把已确认结果整理成汇报 PPT', skill: 'sci-slides', guide: '请基于当前研究进展制作汇报：' },
+  { id: 'slides', label: '汇报', hint: '用本轮证据、分歧和下一步准备组会 PPT', skill: 'sci-slides', guide: '请基于当前研究进展制作汇报：' },
 ])
 
 // 插入文本构造（纯函数，单测覆盖）：

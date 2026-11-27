@@ -123,7 +123,7 @@ async function loadHookUnderTest() {
   mkdirSync(join(dir, 'project'), { recursive: true })
   mkdirSync(join(dir, 'workbench'), { recursive: true })
   writeFileSync(join(dir, 'react-stub.mjs'), REACT_STUB, 'utf8')
-  writeFileSync(join(dir, 'workbench', 'state-view.js'), readFileSync(new URL('../client-src/workbench/state-view.js', import.meta.url), 'utf8'), 'utf8')
+  writeFileSync(join(dir, 'workbench', 'state-view.js'), `export * from ${JSON.stringify(new URL('../client-src/workbench/state-view.js', import.meta.url).href)}`, 'utf8')
   writeFileSync(join(dir, 'project', 'project-binding.js'), readFileSync(new URL('../client-src/project/project-binding.js', import.meta.url), 'utf8'), 'utf8')
   writeFileSync(join(dir, 'project', 'object-hash.js'), readFileSync(new URL('../client-src/project/object-hash.js', import.meta.url), 'utf8'), 'utf8')
   const source = readFileSync(new URL('../client-src/project/use-project-binding.js', import.meta.url), 'utf8')

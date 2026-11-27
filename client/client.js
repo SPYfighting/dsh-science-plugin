@@ -344,7 +344,8 @@ var import_react4 = __toESM(require("react"), 1);
 var import_jsx_runtime3 = require("react/jsx-runtime");
 var READINESS_LABELS = [["scientific", "\u79D1\u5B66\u8BC1\u636E"], ["manuscript", "\u7A3F\u4EF6\u5C31\u7EEA"], ["submission", "\u6295\u7A3F\u5C31\u7EEA"]];
 function readinessText(value) {
-  if (!value) return "\u5F85\u6838\u5BF9";
+  if (!value || value.state === "unknown") return "\u5F85\u6838\u5BF9";
+  if (value.state === "excluded") return "\u5DF2\u6392\u9664";
   if (value.state === "ready" || value.state === "completed") return "\u5DF2\u5177\u5907";
   if (value.state === "in_progress") return "\u8FDB\u884C\u4E2D";
   return "\u5F85\u5B8C\u5584";
@@ -395,6 +396,26 @@ function ResultCard({ result, onAction, onConfirm, busy = false }) {
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "\u4FEE\u8BA2\uFF1A" }),
         result.revision || 1
       ] }),
+      result.claimAssessments?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ul", { className: "sci-note-list", children: result.claimAssessments.map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("li", { children: [
+        c.text,
+        "\uFF08\u7B2C ",
+        c.revision,
+        " \u7248\uFF09 \xB7 ",
+        { pass: "\u5BA1\u67E5\u901A\u8FC7", warn: "\u5BA1\u67E5\u5B58\u7591", fail: "\u5BA1\u67E5\u672A\u901A\u8FC7" }[c.review?.severity] || "\u5C1A\u672A\u5BA1\u67E5",
+        c.review?.message && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: c.review.message }),
+        c.conflictReviewed && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+          "\u5DF2\u590D\u6838\u5206\u6B67\u8BC1\u636E \xB7 ",
+          c.conflictingEvidenceIds.join("\u3001")
+        ] }),
+        c.evidenceIds.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+          "\u672C\u7248\u8BC1\u636E \xB7 ",
+          c.evidenceIds.join("\u3001")
+        ] }),
+        c.historicalEvidenceIds.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+          "\u65E7\u7248\u8BC1\u636E \xB7 ",
+          c.historicalEvidenceIds.join("\u3001")
+        ] })
+      ] }, c.id)) }),
       result.purpose && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "\u76EE\u7684\uFF1A" }),
         result.purpose
@@ -549,11 +570,22 @@ function graphLayout(tasks) {
   const height = Math.max(180, ...columns.map((col) => col?.length * 96 || 0));
   return { columns, position, width, height, byId };
 }
+var PAGE_SIZE = 20;
+function dependencyLabel(task) {
+  if (!task.blockedBy?.length) return "";
+  const rule = task.dependencyPolicy === "success" ? "\u524D\u7F6E\u987B\u6210\u529F" : "\u524D\u7F6E\u987B\u7ED3\u675F";
+  return `${rule} \xB7 ${task.blockedBy.join("\u3001")}`;
+}
 var STATE_TONE = { completed: "good", failed: "bad", blocked: "warn", in_progress: "default", claimed: "default", pending: "default" };
 function TeamProgressPage({ view, openMemberSession, memberOpenAvailable }) {
   const [mode, setMode] = (0, import_react5.useState)("graph");
   const [memberError, setMemberError] = (0, import_react5.useState)(null);
-  const tasks = view.team.tasks;
+  const [requestedPage, setPage] = (0, import_react5.useState)(0);
+  const allTasks = view.team.tasks;
+  const pageCount = Math.max(1, Math.ceil(allTasks.length / PAGE_SIZE));
+  const page = Math.min(requestedPage, pageCount - 1);
+  const end = allTasks.length - page * PAGE_SIZE;
+  const tasks = (0, import_react5.useMemo)(() => allTasks.slice(Math.max(0, end - PAGE_SIZE), end), [allTasks, end]);
   const layout = (0, import_react5.useMemo)(() => graphLayout(tasks), [tasks]);
   const openMember = async (member) => {
     try {
@@ -607,43 +639,60 @@ function TeamProgressPage({ view, openMemberSession, memberOpenAvailable }) {
         memberOpenAvailable && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-result-actions", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { small: true, onClick: () => openMember(member), children: "\u6253\u5F00\u6210\u5458\u4F1A\u8BDD" }) })
       ] }, member.name)) }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(EmptyState, { title: "\u56E2\u961F\u5C1A\u672A\u542F\u52A8", children: "\u5F00\u59CB\u7EC6\u5316\u5DF2\u786E\u8BA4\u7684\u7814\u7A76\u7ED3\u679C\u540E\uFF0C\u56E2\u961F\u4EFB\u52A1\u4F1A\u663E\u793A\u5728\u8FD9\u91CC\u3002" })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Panel, { title: "\u6267\u884C\u4EFB\u52A1", subtitle: "\u4F9D\u8D56\u7EBF\u4ECE\u4E0A\u6E38\u4EFB\u52A1\u6307\u5411\u7B49\u5F85\u5B83\u5B8C\u6210\u7684\u4EFB\u52A1\u3002", action: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-result-actions", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(Panel, { title: "\u6267\u884C\u4EFB\u52A1", subtitle: "\u4F9D\u8D56\u7EBF\u4ECE\u4E0A\u6E38\u4EFB\u52A1\u6307\u5411\u7B49\u5F85\u5B83\u5B8C\u6210\u7684\u4EFB\u52A1\u3002", action: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-result-actions", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { small: true, primary: mode === "graph", "aria-pressed": mode === "graph", onClick: () => setMode("graph"), children: "\u4F9D\u8D56\u56FE" }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { small: true, primary: mode === "list", "aria-pressed": mode === "list", onClick: () => setMode("list"), children: "\u5217\u8868" })
-    ] }), children: tasks.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-small", children: "\u8FD8\u6CA1\u6709\u8BB0\u5F55\u7684\u6267\u884C\u4EFB\u52A1\u3002" }) : mode === "list" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-task-list", children: tasks.map((task) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-row", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("b", { children: task.subject || task.id }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-small", children: task.description || task.resultIds.join("\u3001") || "\u672A\u5173\u8054\u7814\u7A76\u7ED3\u679C" })
+    ] }), children: [
+      pageCount > 1 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("nav", { className: "sci-result-actions", "aria-label": "\u6267\u884C\u4EFB\u52A1\u5206\u9875", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { small: true, disabled: page === 0, onClick: () => setPage(page - 1), children: "\u8F83\u65B0\u4EFB\u52A1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "sci-small", children: [
+          "\u7B2C ",
+          page + 1,
+          " / ",
+          pageCount,
+          " \u9875 \xB7 \u5171 ",
+          allTasks.length,
+          " \u9879",
+          mode === "graph" ? " \xB7 \u8FDE\u7EBF\u4EC5\u663E\u793A\u672C\u9875\u5185\u7684\u4F9D\u8D56" : ""
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Button, { small: true, disabled: page === pageCount - 1, onClick: () => setPage(page + 1), children: "\u8F83\u65E9\u4EFB\u52A1" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { children: task.assignee || "\u672A\u5206\u914D" }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Badge, { tone: STATE_TONE[task.status], children: task.label }),
-      task.blockers.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-small", children: [
-        "\u963B\u585E\uFF1A",
-        task.blockers.join("\uFF1B")
-      ] })
-    ] }, task.id)) }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-task-graph", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-canvas", style: { width: layout.width, height: layout.height }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("svg", { className: "sci-task-lines", width: layout.width, height: layout.height, viewBox: `0 0 ${layout.width} ${layout.height}`, "aria-hidden": "true", children: [
-        tasks.flatMap((task) => (task.blockedBy || []).map((id) => {
-          const from = layout.position.get(id), to = layout.position.get(task.id);
-          if (!from || !to) return null;
-          const startX = from.x + 188, startY = from.y + 36, endX = to.x, endY = to.y + 36, bend = Math.max(22, (endX - startX) / 2);
-          return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("path", { className: "sci-task-line", d: `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`, markerEnd: "url(#sci-arrow)" }, `${id}-${task.id}`);
-        })),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("defs", { children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("marker", { id: "sci-arrow", markerWidth: "7", markerHeight: "7", refX: "6", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("path", { d: "M0,0 L7,3.5 L0,7", fill: "none", stroke: "currentColor" }) }) })
-      ] }),
-      tasks.map((task) => {
-        const point = layout.position.get(task.id);
-        return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-node", style: { left: point.x, top: point.y }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: task.subject || task.id }),
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { children: [
-            task.assignee || "\u672A\u5206\u914D",
-            " \xB7 ",
-            task.label
-          ] }),
-          task.resultIds.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: task.resultIds.join("\u3001") })
-        ] }, task.id);
-      })
-    ] }) }) }),
+      tasks.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-small", children: "\u8FD8\u6CA1\u6709\u8BB0\u5F55\u7684\u6267\u884C\u4EFB\u52A1\u3002" }) : mode === "list" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-task-list", children: tasks.map((task) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-row", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("b", { children: task.subject || task.id }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-small", children: [task.id, ...task.resultIds].join(" \xB7 ") }),
+          task.blockedBy?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-small", children: dependencyLabel(task) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { children: task.assignee || "\u672A\u5206\u914D" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Badge, { tone: task.isBlocked ? "warn" : STATE_TONE[task.status], children: task.label }),
+        task.blockers.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-small", children: [
+          "\u963B\u585E\uFF1A",
+          task.blockers.join("\uFF1B")
+        ] })
+      ] }, task.id)) }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-task-graph", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-canvas", style: { width: layout.width, height: layout.height }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("svg", { className: "sci-task-lines", width: layout.width, height: layout.height, viewBox: `0 0 ${layout.width} ${layout.height}`, "aria-hidden": "true", children: [
+          tasks.flatMap((task) => (task.blockedBy || []).map((id) => {
+            const from = layout.position.get(id), to = layout.position.get(task.id);
+            if (!from || !to) return null;
+            const startX = from.x + 188, startY = from.y + 36, endX = to.x, endY = to.y + 36, bend = Math.max(22, (endX - startX) / 2);
+            return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("path", { className: "sci-task-line", d: `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`, markerEnd: "url(#sci-arrow)" }, `${id}-${task.id}`);
+          })),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("defs", { children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("marker", { id: "sci-arrow", markerWidth: "7", markerHeight: "7", refX: "6", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("path", { d: "M0,0 L7,3.5 L0,7", fill: "none", stroke: "currentColor" }) }) })
+        ] }),
+        tasks.map((task) => {
+          const point = layout.position.get(task.id);
+          return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-node", title: [task.id, dependencyLabel(task)].filter(Boolean).join(" \xB7 "), style: { left: point.x, top: point.y }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { children: task.subject || task.id }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { children: [
+              task.assignee || "\u672A\u5206\u914D",
+              " \xB7 ",
+              task.label
+            ] }),
+            task.resultIds.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: task.resultIds.join("\u3001") })
+          ] }, task.id);
+        })
+      ] }) })
+    ] }),
     view.team.blockedTasks.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Panel, { title: "\u53D7\u963B\u4E8B\u9879", subtitle: "\u53EA\u5217\u51FA\u660E\u786E\u7684\u672A\u5B8C\u6210\u4F9D\u8D56\u6216\u88AB\u6807\u8BB0\u4E3A\u963B\u585E\u7684\u4EFB\u52A1\u3002", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "sci-task-list", children: view.team.blockedTasks.map((task) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "sci-task-row", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("b", { children: task.subject || task.id }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "sci-small", children: task.blockers.join("\uFF1B") }),
@@ -1110,7 +1159,7 @@ function createProjectBinding({ getSessionId, fetchImpl, eventSourceImpl, onLog 
     es.addEventListener("baseline", guarded((ev) => {
       const data = safeParse(ev.data);
       if (!data) return;
-      if (data.revision != null && data.revision !== state.revision) {
+      if (data.revision != null && (data.revision !== state.revision || data.projectionVersion != null && data.projectionVersion !== state.project?.projectionVersion)) {
         void refetch(sid, gen);
       } else if (data.revision == null && state.status === "ready") {
         emit({ status: "empty", project: null, revision: null, stale: false });
@@ -1304,6 +1353,35 @@ async function objectContentHashesOf(project) {
   }
 }
 
+// lib/dag.js
+var terminalStatuses = /* @__PURE__ */ new Set(["completed", "done", "failed", "cancelled", "deleted"]);
+function isTerminalTask(status) {
+  return terminalStatuses.has(status);
+}
+function dependencySatisfied(status, policy = "finished") {
+  return policy === "finished" ? isTerminalTask(status) : status === "completed" || status === "done";
+}
+function unmetTaskDependencies(task, lookup) {
+  return normalizedBlockedBy(task).map((id) => {
+    const dependency = lookup(id);
+    return { id, status: dependency ? String(dependency.status || "unknown") : "missing" };
+  }).filter((dep) => !dependencySatisfied(dep.status, task.dependencyPolicy));
+}
+function normalizedBlockedBy(task) {
+  const raw = task && Array.isArray(task.blockedBy) ? task.blockedBy : [];
+  const self = task && typeof task.id === "string" ? task.id.trim() : null;
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const id = item.trim();
+    if (!id || id === self || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 // client-src/workbench/state-view.js
 var STAGES = Object.freeze([
   { id: "explore", label: "\u7814\u7A76\u63A2\u7D22" },
@@ -1315,7 +1393,6 @@ var STAGES = Object.freeze([
 ]);
 var LIVE_STATUSES = /* @__PURE__ */ new Set(["claimed", "in_progress", "running", "working"]);
 var DONE_STATUSES = /* @__PURE__ */ new Set(["completed", "done"]);
-var HIDDEN_STATUSES = /* @__PURE__ */ new Set(["deleted", "cancelled"]);
 var IMAGE_EXTENSIONS = /* @__PURE__ */ new Set(["png", "jpg", "jpeg", "webp", "svg"]);
 var asArray = (value) => Array.isArray(value) ? value : [];
 var asText = (value) => typeof value === "string" ? value : "";
@@ -1340,6 +1417,8 @@ function statusLabel(status) {
     working: "\u5DE5\u4F5C\u4E2D",
     running: "\u8FD0\u884C\u4E2D",
     completed: "\u5DF2\u5B8C\u6210",
+    done: "\u5DF2\u5B8C\u6210",
+    deleted: "\u5DF2\u5220\u9664",
     failed: "\u5931\u8D25",
     blocked: "\u53D7\u963B",
     cancelled: "\u5DF2\u53D6\u6D88"
@@ -1352,17 +1431,10 @@ function taskResultIds(task) {
   for (const id of asArray(task?.resultIds)) if (typeof id === "string" && id && !ids.includes(id)) ids.push(id);
   return ids;
 }
-function readinessForResult(blueprint, result) {
-  const row = asArray(blueprint?.paperSpine?.results).find((item) => item && item.id === result.id);
-  if (row?.readiness && typeof row.readiness === "object") return row.readiness;
-  const evidence2 = asArray(result.evidence).filter((item) => item && item.state === "verified").length;
-  const claims = asArray(result.claims).length;
-  const manuscript = nonEmpty(result.manuscriptRole) && result.manuscriptRole !== "excluded";
-  return {
-    scientific: { state: evidence2 > 0 ? "in_progress" : "blocked", blockers: evidence2 > 0 ? [] : ["\u5C1A\u65E0\u53EF\u6838\u9A8C\u8BC1\u636E"] },
-    manuscript: { state: manuscript && claims > 0 ? "in_progress" : "blocked", blockers: manuscript && claims > 0 ? [] : ["\u5C1A\u65E0\u5199\u4F5C\u6750\u6599"] },
-    submission: { state: "blocked", blockers: ["\u6295\u7A3F\u51C6\u5907\u4FE1\u606F\u5C1A\u672A\u6838\u5BF9"] }
-  };
+function readinessForResult(row) {
+  if (row?.readiness) return row.readiness;
+  const unknown = { state: "unknown", blockers: [] };
+  return { scientific: unknown, manuscript: unknown, submission: unknown };
 }
 function memberLiveLabel(status) {
   const labels = {
@@ -1383,12 +1455,15 @@ function memberLiveTone(status) {
   return "default";
 }
 function taskBlockers(task, taskById) {
+  if (isTerminalTask(task.status)) return [];
   const blockers = [];
   if (task.status === "blocked") blockers.push(nonEmpty(task.blockedReason) || "\u4EFB\u52A1\u5DF2\u6807\u8BB0\u4E3A\u53D7\u963B");
-  for (const id of asArray(task.blockedBy)) {
+  for (const { id, status } of unmetTaskDependencies(task, (id2) => taskById.get(id2))) {
     const dependency = taskById.get(id);
-    if (!dependency || !DONE_STATUSES.has(dependency.status)) {
-      blockers.push(dependency ? `\u7B49\u5F85\u201C${dependency.subject || dependency.id}\u201D\u5B8C\u6210` : `\u4F9D\u8D56\u4EFB\u52A1 ${id} \u4E0D\u5728\u5F53\u524D\u4EFB\u52A1\u677F`);
+    if (!dependency) blockers.push(`\u4F9D\u8D56\u4EFB\u52A1 ${id} \u4E0D\u5728\u5F53\u524D\u4EFB\u52A1\u677F`);
+    else {
+      const name = dependency.subject || id;
+      blockers.push(isTerminalTask(status) ? `\u201C${name}\u201D${statusLabel(status)}\uFF0C\u672A\u6210\u529F\u4EA4\u4ED8` : `\u7B49\u5F85\u201C${name}\u201D\u5B8C\u6210`);
     }
   }
   return [...new Set(blockers)];
@@ -1448,8 +1523,9 @@ function stateViewOf(snapshot) {
   const blueprint = snapshot.blueprint && typeof snapshot.blueprint === "object" ? snapshot.blueprint : {};
   const teamState = snapshot.team && typeof snapshot.team === "object" ? snapshot.team : {};
   const rawResults = asArray(blueprint.results);
-  const rawTasks = asArray(teamState.tasks).filter((task) => task && !HIDDEN_STATUSES.has(task.status));
-  const taskById = new Map(rawTasks.filter((task) => task.id).map((task) => [task.id, task]));
+  const allTasks = asArray(teamState.tasks).filter((task) => task && task.id);
+  const taskById = new Map(allTasks.map((task) => [task.id, task]));
+  const rawTasks = allTasks.filter((task) => task.status !== "deleted");
   const figures = railFiguresOf(snapshot);
   const files = asArray(snapshot.files);
   const tasks = rawTasks.map((task) => {
@@ -1468,7 +1544,8 @@ function stateViewOf(snapshot) {
   const resultRows = rawResults.filter((result) => result && typeof result === "object").map((result) => {
     const linkedTasks = tasks.filter((task) => taskResultIds(task).includes(result.id) || asArray(result.tasks).includes(task.id));
     const linkedFigures = figures.filter((figure) => figure && (figure.resultId === result.id || asArray(figure.resultIds).includes(result.id) || asArray(result.figures).includes(figure.id)));
-    const readiness = readinessForResult(blueprint, result);
+    const assessment = asArray(blueprint?.paperSpine?.results).find((item) => item?.id === result.id);
+    const readiness = readinessForResult(assessment);
     const required = Object.values(readiness).filter((item) => item && item.state === "blocked").flatMap((item) => asArray(item.blockers));
     const recommended = Object.values(readiness).filter((item) => item && item.state === "in_progress").flatMap((item) => asArray(item.blockers));
     return {
@@ -1477,6 +1554,7 @@ function stateViewOf(snapshot) {
       statusLabel: { planned: "\u8BA1\u5212\u4E2D", in_progress: "\u8FDB\u884C\u4E2D", supported: "\u5DF2\u83B7\u5F97\u652F\u6301", negative: "\u4E0E\u9884\u671F\u4E0D\u7B26", dropped: "\u4E0D\u7EB3\u5165\u6B63\u6587" }[result.status] || "\u72B6\u6001\u5F85\u6838\u5BF9",
       confirmed: result.confirmed === true,
       readiness,
+      claimAssessments: asArray(assessment?.claimAssessments),
       taskCount: linkedTasks.length,
       completedTaskCount: linkedTasks.filter((task) => task.isComplete).length,
       runningTaskCount: linkedTasks.filter((task) => task.isRunning).length,
@@ -1487,7 +1565,7 @@ function stateViewOf(snapshot) {
       tasks: linkedTasks
     };
   });
-  const activeTasks = tasks.filter((task) => !task.isComplete);
+  const activeTasks = tasks.filter((task) => !isTerminalTask(task.status));
   const counts = {
     running: tasks.filter((task) => task.isRunning && !task.isBlocked).length,
     waiting: tasks.filter((task) => task.status === "pending" && !task.isBlocked).length,
@@ -1501,7 +1579,7 @@ function stateViewOf(snapshot) {
       liveStatus,
       liveStatusLabel: memberLiveLabel(liveStatus),
       liveStatusTone: memberLiveTone(liveStatus),
-      currentTasks: tasks.filter((task) => task.assignee === member.name && !task.isComplete),
+      currentTasks: tasks.filter((task) => task.assignee === member.name && !isTerminalTask(task.status)),
       lastReport: nonEmpty(member.lastReport) || nonEmpty(member.lastSummary) || ""
     };
   });
@@ -1646,11 +1724,12 @@ function scopedTeamOf(team, projectId, rootSessionId) {
       childId: asText(member.childId),
       parentSessionId: asText(member.parentSessionId)
     })),
-    tasks: asArray(source.tasks).filter(matches).slice(-20).map((task) => ({
+    tasks: asArray(source.tasks).filter(matches).map((task) => ({
       id: asText(task.id),
       subject: asText(task.subject),
       status: asText(task.status) || "pending",
       assignee: asText(task.assignee),
+      dependencyPolicy: task.dependencyPolicy || "finished",
       blockedBy: asArray(task.blockedBy).map(asText).filter(Boolean),
       resultIds: taskResultIds(task)
     }))
@@ -1671,7 +1750,7 @@ function projectRawOf(project, { hashes = null, ref = null, team = null, now = n
     relationship: ref?.relationship || null,
     capabilities: ref?.capabilities || null,
     focus: snapshot.focus || null,
-    blueprint: { ...paper, core, results },
+    blueprint: { ...paper, core, results, paperSpine: project?.paperSpine || paper.paperSpine },
     team: scopedTeamOf(team, project?.projectId || ref?.projectId || null, ref?.rootSessionId || null),
     figures: [],
     artifactIndex: snapshot.artifactIndex || { items: [] },
@@ -2657,7 +2736,7 @@ var SCIENCE_SKILLS = Object.freeze([
   { id: "literature", label: "\u67E5\u6587\u732E", hint: "\u56F4\u7ED5\u5F53\u524D\u95EE\u9898\u6269\u5C55\u6587\u732E\u4E0E\u6D41\u7A0B\u63A2\u7D22", skill: "sci-autoresearch", guide: "\u8BF7\u56F4\u7ED5\u6211\u7684\u7814\u7A76\u95EE\u9898\u505A\u6587\u732E\u4E0E\u6D41\u7A0B\u63A2\u7D22\uFF1A" },
   { id: "draw", label: "\u7ED8\u56FE", hint: "\u4E3A\u7ED3\u679C\u5EFA\u7ACB\u53EF\u8FFD\u6EAF\u56FE\u4EF6", skill: "sci-figures", guide: "\u8BF7\u4E3A\u4EE5\u4E0B\u7814\u7A76\u7ED3\u679C\u5EFA\u7ACB\u56FE\u4EF6\u65B9\u6848\uFF1A" },
   { id: "write", label: "\u5199\u4F5C", hint: "\u56F4\u7ED5\u5DF2\u786E\u8BA4\u7ED3\u679C\u8D77\u8349\u6216\u4FEE\u6539\u7A3F\u4EF6", skill: "sci-writing", guide: "\u8BF7\u57FA\u4E8E\u5F53\u524D\u8BBA\u6587\u4E3B\u7EBF\u8D77\u8349\uFF1A" },
-  { id: "slides", label: "\u6C47\u62A5", hint: "\u628A\u5DF2\u786E\u8BA4\u7ED3\u679C\u6574\u7406\u6210\u6C47\u62A5 PPT", skill: "sci-slides", guide: "\u8BF7\u57FA\u4E8E\u5F53\u524D\u7814\u7A76\u8FDB\u5C55\u5236\u4F5C\u6C47\u62A5\uFF1A" }
+  { id: "slides", label: "\u6C47\u62A5", hint: "\u7528\u672C\u8F6E\u8BC1\u636E\u3001\u5206\u6B67\u548C\u4E0B\u4E00\u6B65\u51C6\u5907\u7EC4\u4F1A PPT", skill: "sci-slides", guide: "\u8BF7\u57FA\u4E8E\u5F53\u524D\u7814\u7A76\u8FDB\u5C55\u5236\u4F5C\u6C47\u62A5\uFF1A" }
 ]);
 function insertionTextFor(entry, currentDraft = "") {
   const body = entry.skill ? `/${entry.skill}
@@ -2742,7 +2821,7 @@ function ScienceDock({ inputActions, useInput, services }) {
     }
     setNotice(result.inserted ? { tone: "info", text: "\u5DF2\u5728\u8F93\u5165\u6846\u51C6\u5907\u6280\u80FD\uFF0C\u8BF7\u7EE7\u7EED\u8865\u5145\u540E\u53D1\u9001\u3002" } : { tone: "info", text: result.message });
   }, [inputActions, input]);
-  const connectProject = (0, import_react13.useCallback)(async () => {
+  const createProject = (0, import_react13.useCallback)(async () => {
     if (!state.sessionId) {
       setNotice({ tone: "error", text: "\u5F53\u524D\u6CA1\u6709\u4F1A\u8BDD\u3002" });
       return;
@@ -2753,11 +2832,11 @@ function ScienceDock({ inputActions, useInput, services }) {
       payload: {}
     });
     if (r.status === 200 && (r.body.kind === "applied" || r.body.kind === "already-applied")) {
-      setNotice({ tone: "info", text: "\u5DF2\u8FDE\u63A5\u7814\u7A76\u9879\u76EE\u3002" });
+      setNotice({ tone: "info", text: "\u5F53\u524D\u4F1A\u8BDD\u5DF2\u7ED1\u5B9A\u79D1\u7814\u9879\u76EE\u3002" });
       void state.refresh();
       return;
     }
-    setNotice({ tone: "error", text: r.body && r.body.reason || "\u8FDE\u63A5\u5931\u8D25\uFF1A" + String(r.status) });
+    setNotice({ tone: "error", text: r.body && r.body.reason || "\u521B\u5EFA\u79D1\u7814\u9879\u76EE\u5931\u8D25\uFF1A" + String(r.status) });
   }, [state]);
   const keepFocus = (0, import_react13.useCallback)((event) => event.preventDefault(), []);
   const busy = input ? input.phase !== "plain" : false;
@@ -2790,8 +2869,8 @@ function ScienceDock({ inputActions, useInput, services }) {
       stale && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "sci-dock-chip", "data-tone": "bad", children: "\u8FDE\u63A5\u4E2D\u65AD\uFF0C\u72B6\u6001\u53EF\u80FD\u8FC7\u671F" })
     ] }) }),
     status === "empty" && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "sci-dock-row", style: { marginBottom: 3 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "sci-dock-ctx", children: "\u5C1A\u672A\u5EFA\u7ACB\u7814\u7A76\u9879\u76EE\u2014\u2014\u4ECE\u4E00\u53E5\u8BDD\u5F00\u59CB\uFF0C\u6216\u6574\u7406\u5DF2\u6709\u7ED3\u679C\u3002" }),
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { type: "button", className: "sci-dock-btn", onMouseDown: keepFocus, disabled: busy, onClick: connectProject, children: "\u8FDE\u63A5\u73B0\u6709\u9879\u76EE" })
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "sci-dock-ctx", children: "\u5F53\u524D\u4F1A\u8BDD\u5C1A\u65E0\u79D1\u7814\u9879\u76EE\u3002\u7EE7\u7EED\u5DF2\u6709\u8BFE\u9898\uFF0C\u53EF\u5728\u7814\u7A76\u72B6\u6001\u4E2D\u9009\u62E9\u201C\u67E5\u770B\u5168\u90E8\u9879\u76EE\u201D\u3002" }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { type: "button", className: "sci-dock-btn", onMouseDown: keepFocus, disabled: busy, onClick: createProject, children: "\u65B0\u5EFA\u79D1\u7814\u9879\u76EE" })
     ] }),
     status === "offline" && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "sci-dock-row", style: { marginBottom: 3 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "sci-dock-chip", "data-tone": "bad", children: "\u7814\u7A76\u72B6\u6001\u8FDE\u63A5\u4E2D\u65AD" }),

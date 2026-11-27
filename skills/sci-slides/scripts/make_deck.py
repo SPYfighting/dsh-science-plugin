@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""dsh-science sci-slides — 科研汇报 PPT 最小模板脚本（python-pptx）。
-
-骨架函数（封面/背景与缺口/方法概览/每 result 一页/结论与展望/Q&A 备份页），
-版面纪律落在常量与断言里：16:9、Results 页图占右 55% 版面、要点 ≤5 条/页
-（超限抛错，不静默截断）、层级字号、红灰学术配色、来源角标可溯源。
-
-用法（CLI，会话工作区内跑）:
-    python make_deck.py --out slides/demo_deck.pptx --spec spec.json
-    python make_deck.py --out slides/deck.pptx --title "..." --claim "..." \
-        --figure figures/fig1.png --figure figures/fig2.png   # 无 spec 时的极简路径
-
-spec.json 见 SKILL.md（字段全部可缺省）。也可以 import 本文件逐页拼装：
-    from make_deck import new_deck, add_cover, add_result, ...
-依赖: pip install python-pptx（缺依赖时报错并给安装提示，不静默换库）。
-字体: python-pptx 无法直接嵌入字体——本脚本统一 Arial（拉丁）+ 微软雅黑（东亚），
-保证 Windows/LibreOffice 兼容；需要真嵌入时用 PowerPoint 另存（嵌入字体）。
-
-方法论出处见 SKILL.md 头注（PPTAgent / academic-ppt-skill / open-kimi-ppt，机制吸收、原创实现）。
-"""
+"""从组会页面规划生成可编辑 PPTX。CLI 及 JSON 字段见同一 Skill 的 SKILL.md。"""
 
 import argparse
 import json
@@ -26,9 +8,10 @@ import sys
 
 try:
     from pptx import Presentation
-    from pptx.util import Inches, Pt, Emu
+    from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.enum.shapes import MSO_SHAPE
 except ImportError:
     sys.stderr.write("缺少依赖 python-pptx：请先运行 pip install python-pptx\n")
     sys.exit(2)
@@ -38,14 +21,12 @@ SLIDE_W_IN, SLIDE_H_IN = 13.333, 7.5           # 16:9
 MARGIN_IN = 0.6                                 # 四周外边距
 PIC_RATIO = 0.55                                # Results 页图区宽度占比（≥50% 纪律）
 MAX_BULLETS = 5                                 # 每页要点上限（超限抛错）
-MAX_BODY_CHARS = 40                             # 每页正文字数上限（导读句）
 
-INK = RGBColor(0x2C, 0x3E, 0x50)                # 深灰（正文/标题）
-ACCENT = RGBColor(0xC0, 0x39, 0x2B)             # 学术红（强调/角标）
-MUTED = RGBColor(0x7F, 0x8C, 0x8D)              # 中灰（图注/来源）
-LINE = RGBColor(0xBD, 0xC3, 0xC7)               # 边框灰
-FILL = RGBColor(0xFD, 0xED, 0xEC)               # 浅红填充（主张框）
-FONT_LATIN, FONT_EA = "Arial", "微软雅黑"
+
+INK = RGBColor(0x18, 0x20, 0x29)
+ACCENT = RGBColor(0x16, 0x35, 0x57)
+MUTED = RGBColor(0x41, 0x4B, 0x55)
+FONT_LATIN, FONT_EA = "Times New Roman", "Microsoft YaHei"
 
 TITLE_PT, BODY_PT, NOTE_PT = 30, 19, 13         # 层级字号：页标题/要点/图注
 
@@ -81,7 +62,7 @@ def _textbox(slide, left, top, width, height):
     return tf
 
 
-def _title(slide, text, color=INK):
+def _title(slide, text, color=ACCENT):
     """页标题（结论句）+ 标题下强调短线，全页共用坐标。"""
     tf = _textbox(slide, MARGIN_IN, 0.35, SLIDE_W_IN - 2 * MARGIN_IN, 0.9)
     p = tf.paragraphs[0]
@@ -98,7 +79,7 @@ def _source_tag(slide, text):
     """右下角来源角标（res-N / fig-*），可溯源。"""
     if not text:
         return
-    tf = _textbox(slide, SLIDE_W_IN - MARGIN_IN - 3.2, SLIDE_H_IN - 0.5, 3.2, 0.35)
+    tf = _textbox(slide, MARGIN_IN, SLIDE_H_IN - 0.55, SLIDE_W_IN - 2 * MARGIN_IN, 0.45)
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.RIGHT
     run = p.add_run()
@@ -119,45 +100,21 @@ def _bullets(slide, items, left, top, width, height, size=BODY_PT):
 
 
 def _picture_zone(slide, paths, left, top, width, height):
-    """图区：等比缩放居中放登记图（多图纵向均分）；无图放占位框标注登记图路径——绝不拿装饰图冒充。"""
-    n = max(len(paths), 1)
-    cell_h = height / n
-    for i in range(n):
-        cell_top = top + i * cell_h
-        path = paths[i] if i < len(paths) else None
-        if path and os.path.exists(path):
-            ratio = 4 / 3  # 缺 Pillow 或读图失败时按 4:3 兜底
-            try:
-                from PIL import Image
-                with Image.open(path) as im:
-                    w, h = im.size
-                if h:
-                    ratio = w / h
-            except Exception:
-                pass
-            draw_w, draw_h = width, width / ratio
-            if draw_h > cell_h:
-                draw_h, draw_w = cell_h, cell_h * ratio
-            slide.shapes.add_picture(
-                path,
-                Inches(left + (width - draw_w) / 2),
-                Inches(cell_top + (cell_h - draw_h) / 2),
-                Inches(draw_w),
-                Inches(draw_h),
-            )
-        else:
-            ph = slide.shapes.add_shape(1, Inches(left + 0.2), Inches(cell_top + 0.2),
-                                        Inches(width - 0.4), Inches(cell_h - 0.4))
-            ph.fill.solid()
-            ph.fill.fore_color.rgb = RGBColor(0xEC, 0xF0, 0xF1)
-            ph.line.color.rgb = LINE
-            tf = ph.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            p.alignment = PP_ALIGN.CENTER
-            run = p.add_run()
-            run.text = "图位：登记图表路径\n（sci_figure_list 取图，≥50% 版面）" + (f"\n待嵌入：{path}" if path else "")
-            _set_font(run, NOTE_PT, color=MUTED)
+    """在给定区域内按原比例放置研究图件。无效引用须在写出成品前发现。"""
+    from PIL import Image
+    cell_h = height / len(paths)
+    for i, path in enumerate(paths):
+        if not os.path.isfile(path):
+            raise ValueError(f"找不到汇报图件：{path}")
+        with Image.open(path) as img:
+            w, h = img.size
+        scale = min(width / w, cell_h / h)
+        draw_w, draw_h = w * scale, h * scale
+        slide.shapes.add_picture(
+            path, Inches(left + (width - draw_w) / 2),
+            Inches(top + i * cell_h + (cell_h - draw_h) / 2),
+            Inches(draw_w), Inches(draw_h),
+        )
 
 
 def new_deck():
@@ -173,14 +130,14 @@ def _blank(prs):
 
 
 def add_cover(prs, title, subtitle="", authors="", date=""):
-    """封面：标题/副标题（场合或期刊）/作者/日期。缺省内容用占位符并注明。"""
+    """封面：标题/副标题（场合或期刊）/作者/日期。只排入已提供的内容。"""
     s = _blank(prs)
     tf = _textbox(s, 1.2, 2.3, SLIDE_W_IN - 2.4, 2.0)
     p = tf.paragraphs[0]
     p.alignment = PP_ALIGN.CENTER
     run = p.add_run()
-    run.text = title or "（标题占位：blueprint.core.title）"
-    _set_font(run, 40, bold=True, color=INK)
+    run.text = title or "研究进展"
+    _set_font(run, 40, bold=True, color=ACCENT)
     tf2 = _textbox(s, 1.2, 4.3, SLIDE_W_IN - 2.4, 1.6)
     for i, line in enumerate(x for x in (subtitle, authors, date) if x):
         p = tf2.paragraphs[0] if i == 0 else tf2.add_paragraph()
@@ -197,12 +154,10 @@ def add_background(prs, gap_points, claim=""):
     _title(s, "背景与缺口")
     _bullets(s, gap_points, MARGIN_IN, 1.6, SLIDE_W_IN - 2 * MARGIN_IN, 3.4)
     if claim:
-        body_len = sum(len(x) for x in gap_points)
-        if body_len > MAX_BODY_CHARS:
-            raise ValueError(f"背景页正文 {body_len} 字 > 上限 {MAX_BODY_CHARS}：精简或拆页")
-        box = s.shapes.add_shape(1, Inches(MARGIN_IN), Inches(5.6), SLIDE_W_IN - 2 * MARGIN_IN, Inches(1.1))
+        box = s.shapes.add_shape(1, Inches(MARGIN_IN), Inches(5.6),
+                                 Inches(SLIDE_W_IN - 2 * MARGIN_IN), Inches(1.1))
         box.fill.solid()
-        box.fill.fore_color.rgb = FILL
+        box.fill.fore_color.rgb = ACCENT
         box.line.color.rgb = ACCENT
         tf = box.text_frame
         tf.word_wrap = True
@@ -210,7 +165,7 @@ def add_background(prs, gap_points, claim=""):
         p.alignment = PP_ALIGN.CENTER
         run = p.add_run()
         run.text = f"本工作主张：{claim}"
-        _set_font(run, 20, bold=True, color=ACCENT)
+        _set_font(run, 20, bold=True, color=RGBColor(255, 255, 255))
     return s
 
 
@@ -221,33 +176,58 @@ def add_method(prs, one_liner, steps=()):
     tf = _textbox(s, MARGIN_IN, 1.7, SLIDE_W_IN - 2 * MARGIN_IN, 1.4)
     p = tf.paragraphs[0]
     run = p.add_run()
-    run.text = one_liner or "（一句话说清路线：数据/系统/怎么做的）"
+    run.text = one_liner
     _set_font(run, 22, bold=True, color=INK)
-    _bullets(s, list(steps), MARGIN_IN, 3.3, SLIDE_W_IN - 2 * MARGIN_IN, 3.0)
+    if 2 <= len(steps) <= 4 and all(len(step) <= 18 for step in steps):
+        gap = 0.58
+        width = (SLIDE_W_IN - 2 * MARGIN_IN - gap * (len(steps) - 1)) / len(steps)
+        for i, step in enumerate(steps):
+            left = MARGIN_IN + i * (width + gap)
+            node = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(3.4),
+                                      Inches(width), Inches(1.15))
+            node.fill.solid()
+            node.fill.fore_color.rgb = ACCENT
+            node.line.fill.background()
+            node.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            p = node.text_frame.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            run = p.add_run()
+            run.text = step
+            _set_font(run, 18, color=RGBColor(255, 255, 255))
+            if i + 1 < len(steps):
+                arrow = s.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, Inches(left + width + .08),
+                                           Inches(3.83), Inches(gap - .16), Inches(.28))
+                arrow.fill.solid()
+                arrow.fill.fore_color.rgb = ACCENT
+                arrow.line.fill.background()
+    else:
+        _bullets(s, steps, MARGIN_IN, 3.3, SLIDE_W_IN - 2 * MARGIN_IN, 3.0)
     return s
 
 
 def add_result(prs, title, bullets=(), figures=(), source=""):
     """Results 页：结论句作页标题；图区占右侧 55% 宽（≥50% 纪律）；文字只给导读。"""
     s = _blank(prs)
-    _title(s, title or "（结论式页标题：res-N 的 claim 改陈述句）")
-    text_w = (SLIDE_W_IN - 2 * MARGIN_IN) * (1 - PIC_RATIO) - 0.3
-    pic_left = MARGIN_IN + text_w + 0.3
-    pic_w = (SLIDE_W_IN - 2 * MARGIN_IN) * PIC_RATIO
-    _bullets(s, bullets, MARGIN_IN, 1.8, text_w, 4.6)
-    body_chars = sum(len(x) for x in bullets)
-    if body_chars > MAX_BODY_CHARS:
-        raise ValueError(f"Results 页正文 {body_chars} 字 > 上限 {MAX_BODY_CHARS}：文字只写图说明什么")
-    _picture_zone(s, list(figures), pic_left, 1.6, pic_w, SLIDE_H_IN - 2.4)
+    _title(s, title or "本轮观察")
+    content_w = SLIDE_W_IN - 2 * MARGIN_IN
+    if figures and bullets:
+        fig_w = content_w * PIC_RATIO
+        text_w = content_w - fig_w - 0.3
+        _bullets(s, bullets, MARGIN_IN, 1.8, text_w, 4.6)
+        _picture_zone(s, figures, MARGIN_IN + text_w + 0.3, 1.6, fig_w, 4.9)
+    elif figures:
+        _picture_zone(s, figures, MARGIN_IN, 1.6, content_w, 4.9)
+    else:
+        _bullets(s, bullets, MARGIN_IN, 1.8, content_w, 4.6)
     _source_tag(s, source)
     return s
 
 
 def add_conclusion(prs, takeaways, outlook=""):
-    """结论与展望（1 页）：≤3 条结论 + 下一步。"""
+    """本轮判断与下一步。"""
     s = _blank(prs)
     _title(s, "结论与展望")
-    _bullets(s, _check_bullets(takeaways[:3], "结论页"), MARGIN_IN, 1.8, SLIDE_W_IN - 2 * MARGIN_IN, 3.2, size=22)
+    _bullets(s, takeaways, MARGIN_IN, 1.8, SLIDE_W_IN - 2 * MARGIN_IN, 3.2, size=22)
     if outlook:
         tf = _textbox(s, MARGIN_IN, 5.4, SLIDE_W_IN - 2 * MARGIN_IN, 1.0)
         p = tf.paragraphs[0]
@@ -262,40 +242,55 @@ def add_backup(prs, title="统计细节（Q&A 备份）", rows=()):
     s = _blank(prs)
     _title(s, title, color=ACCENT)
     rows = [list(map(str, r)) for r in rows]
-    if rows:
+    if rows and any(rows):
         n_r, n_c = len(rows), max(len(r) for r in rows)
         tbl = s.shapes.add_table(n_r, n_c, Inches(MARGIN_IN), Inches(1.8),
-                                 SLIDE_W_IN - 2 * MARGIN_IN, Inches(min(0.5 * n_r, 4.8))).table
+                                 Inches(SLIDE_W_IN - 2 * MARGIN_IN), Inches(min(0.5 * n_r, 4.8))).table
         for i, row in enumerate(rows):
             for j in range(n_c):
                 cell = tbl.cell(i, j)
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = ACCENT if i == 0 else RGBColor(255, 255, 255)
                 cell.text = row[j] if j < len(row) else ""
                 for p in cell.text_frame.paragraphs:
                     for run in p.runs:
-                        _set_font(run, 14, bold=(i == 0))
-    else:
-        _bullets(s, ["（无备份内容：统计细节/参数表/数据来源按需补）"], MARGIN_IN, 1.8,
-                 SLIDE_W_IN - 2 * MARGIN_IN, 3.0)
+                        _set_font(run, 16, bold=(i == 0), color=RGBColor(255, 255, 255) if i == 0 else INK)
     return s
 
 
+def set_notes(slide, text):
+    if not text:
+        return
+    frame = slide.notes_slide.notes_text_frame
+    frame.text = text
+    for paragraph in frame.paragraphs:
+        for run in paragraph.runs:
+            _set_font(run, 14)
+
+
 def build_deck(spec):
-    """按 spec（蓝图驱动的页面规划）拼装整副汇报。段→页模板见 SKILL.md。"""
+    """保持既有 spec 字段；有内容的章节才生成页面。"""
     prs = new_deck()
     cover = spec.get("cover") or {}
-    add_cover(prs, cover.get("title", ""), cover.get("subtitle", ""),
-              cover.get("authors", ""), cover.get("date", ""))
+    set_notes(add_cover(prs, cover.get("title"), cover.get("subtitle"),
+                        cover.get("authors"), cover.get("date")), cover.get("notes"))
     bg = spec.get("background") or {}
-    add_background(prs, bg.get("gap_points") or [], bg.get("claim", ""))
-    meth = spec.get("method") or {}
-    add_method(prs, meth.get("one_liner", ""), meth.get("steps") or [])
-    for r in spec.get("results") or []:
-        add_result(prs, r.get("title", ""), r.get("bullets") or [],
-                   r.get("figures") or [], r.get("source", ""))
-    concl = spec.get("conclusion") or {}
-    add_conclusion(prs, concl.get("takeaways") or [], concl.get("outlook", ""))
+    if bg.get("gap_points") or bg.get("claim"):
+        set_notes(add_background(prs, bg.get("gap_points") or [], bg.get("claim")), bg.get("notes"))
+    method = spec.get("method") or {}
+    if method.get("one_liner") or method.get("steps"):
+        set_notes(add_method(prs, method.get("one_liner") or "", method.get("steps") or []), method.get("notes"))
+    for result in spec.get("results") or []:
+        slide = add_result(prs, result.get("title"), result.get("bullets") or [],
+                           result.get("figures") or [], result.get("source"))
+        set_notes(slide, result.get("notes"))
+    conclusion = spec.get("conclusion") or {}
+    if conclusion.get("takeaways") or conclusion.get("outlook"):
+        slide = add_conclusion(prs, conclusion.get("takeaways") or [], conclusion.get("outlook"))
+        set_notes(slide, conclusion.get("notes"))
     backup = spec.get("backup") or {}
-    add_backup(prs, backup.get("title", "统计细节（Q&A 备份）"), backup.get("rows") or [])
+    if backup.get("rows"):
+        set_notes(add_backup(prs, backup.get("title") or "统计细节", backup["rows"]), backup.get("notes"))
     return prs
 
 
@@ -323,7 +318,7 @@ def main(argv=None):
     os.makedirs(out_dir, exist_ok=True)
     prs.save(args.out)
     # 自检：重新打开核对页数
-    n = len(Presentation(args.out).slides._sldIdLst)
+    n = len(Presentation(args.out).slides)
     print(f"OK: {args.out}（{n} 页）")
     return 0
 

@@ -351,7 +351,7 @@ describe('T0.3 Project Remote（get/observe/act）', () => {
     return { ctx, handlers }
   }
 
-  test('get：未绑定项目 → project:null；绑定后返回快照；knownRevision 命中 → notModified', async () => {
+  test('get：未绑定项目 → project:null；绑定后返回快照；修订与台账版本均匹配 → notModified', async () => {
     const { ctx } = setup({ sessions: { s1: sessionOf('s1') } })
     let r = await callRoute(ctx, '/plugins/dsh-science/project/get', { url: '/x?sessionId=s1' })
     assert.equal(r.res.statusCode, 200)
@@ -366,7 +366,82 @@ describe('T0.3 Project Remote（get/observe/act）', () => {
     assert.deepEqual(body.team, { members: [], tasks: [] })
 
     r = await callRoute(ctx, '/plugins/dsh-science/project/get', { url: `/x?sessionId=s1&knownRevision=1` })
+    assert.equal(parseJson(r.res).project.projectId, pid, '旧客户端只提供项目修订时仍能取到最新台账')
+    r = await callRoute(ctx, '/plugins/dsh-science/project/get', { url: `/x?sessionId=s1&knownRevision=1&knownProjectionVersion=${body.project.projectionVersion}` })
     assert.equal(parseJson(r.res).notModified, true)
+  })
+
+  test('审查台账单独变化时，项目卡重新读取同一修订；其他项目的审查不会触发刷新', async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] })
+    const { ctx } = setup({ sessions: { s1: sessionOf('s1') } })
+    const projectId = store.createProject({ rootSessionId: 's1' })
+    const stream = await callRoute(ctx, '/plugins/dsh-science/project/observe', { url: '/x?sessionId=s1' })
+    try {
+      const ledger = join(dataDir, 'reviews.json')
+      const foreign = { id: 'r-foreign', projectId: 'other', findings: [] }
+      writeFileSync(ledger, JSON.stringify([foreign]))
+      t.mock.timers.tick(1000)
+      assert.doesNotMatch(stream.res.body, /event: reset/)
+      writeFileSync(ledger, JSON.stringify([foreign, { id: 'r-own', projectId, findings: [] }]))
+      t.mock.timers.tick(1000)
+      assert.match(stream.res.body, /event: reset/)
+      const get = async (query) => parseJson((await callRoute(ctx, '/plugins/dsh-science/project/get', { url: `/x?sessionId=s1&knownRevision=0${query}` })).res)
+      const { project } = await get('')
+      assert.equal(project.revision, 0)
+      assert.equal(project.paperSpine.counts.total, 0)
+      assert.equal((await get(`&knownProjectionVersion=${project.projectionVersion}`)).notModified, true)
+    } finally {
+      stream.req.emit('close')
+    }
+  })
+
+  test('任务完成和图件批准独立刷新项目卡，其他项目的同号任务不会刷新', async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] })
+    const { ctx } = setup({ sessions: { s1: sessionOf('s1') } })
+    const projectId = store.createProject({ rootSessionId: 's1' })
+    store.execute(projectId, { mutationId: 'result', command: 'seed', payload: {}, actor: {} }, (snapshot) => {
+      snapshot.paper.results = [{ id: 'res-1', claim: '室温测试的读数稳定', tasks: ['task-1'], figures: ['fig-1'] }]
+      return { snapshot, changedKeys: ['paper.results'] }
+    })
+    const task = { id: 'task-1', projectId, resultIds: ['res-1'], status: 'in_progress' }
+    const foreign = { ...task, projectId: 'other' }
+    const teamFile = join(dataDir, 'team.json')
+    const writeTeam = () => writeFileSync(teamFile, JSON.stringify({ members: [], tasks: [task, foreign] }))
+    writeTeam()
+    const figure = { id: 'fig-1', projectId, audit: { overallStatus: 'pending' } }
+    const writeFigure = () => writeFileSync(join(dataDir, 'figures.json'), JSON.stringify({ 'fig-1': figure }))
+    writeFigure()
+    const get = async (version) => parseJson((await callRoute(ctx, '/plugins/dsh-science/project/get', {
+      url: `/x?sessionId=s1&knownRevision=1${version ? `&knownProjectionVersion=${version}` : ''}`,
+    })).res)
+    const start = await get()
+    assert.equal(start.project.paperSpine.results[0].counts.completedTasks, 0)
+    const stream = await callRoute(ctx, '/plugins/dsh-science/project/observe', { url: '/x?sessionId=s1' })
+    try {
+      foreign.status = 'completed'
+      writeTeam()
+      t.mock.timers.tick(1000)
+      assert.doesNotMatch(stream.res.body, /event: reset/)
+      assert.equal((await get(start.project.projectionVersion)).notModified, true)
+      task.status = 'completed'
+      writeTeam()
+      t.mock.timers.tick(1000)
+      assert.match(stream.res.body, /event: reset/)
+      const done = await get(start.project.projectionVersion)
+      assert.equal(done.project.revision, start.project.revision)
+      assert.equal(done.team.tasks[0].status, 'completed')
+      assert.equal(done.project.paperSpine.results[0].counts.completedTasks, 1)
+      assert.equal(done.project.paperSpine.results[0].counts.approvedFigures, 0)
+      figure.audit.overallStatus = 'approved'
+      writeFigure()
+      t.mock.timers.tick(1000)
+      assert.equal(stream.res.body.match(/event: reset/g).length, 2)
+      const approved = await get(done.project.projectionVersion)
+      assert.equal(approved.project.paperSpine.results[0].counts.approvedFigures, 1)
+      assert.equal((await get(approved.project.projectionVersion)).notModified, true)
+    } finally {
+      stream.req.emit('close')
+    }
   })
 
   test('get：未知会话 404；队友读绑定项目（服务端解析，不接受客户端 projectId）', async () => {

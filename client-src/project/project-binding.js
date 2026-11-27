@@ -55,7 +55,7 @@ export function createProjectBinding({ getSessionId, fetchImpl, eventSourceImpl,
       // baseline 到达但 generation 已推进时忽略（guarded 已挡）；这里只处理与当前一致的
       const data = safeParse(ev.data)
       if (!data) return
-      if (data.revision != null && data.revision !== state.revision) {
+      if (data.revision != null && (data.revision !== state.revision || (data.projectionVersion != null && data.projectionVersion !== state.project?.projectionVersion))) {
         void refetch(sid, gen)
       } else if (data.revision == null && state.status === 'ready') {
         emit({ status: 'empty', project: null, revision: null, stale: false })

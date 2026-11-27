@@ -1,6 +1,6 @@
 // dsh-science — Composer context dock（T3.2：项目上下文 + 技能入口；T5：共享 project-binding）
 // 注册在 conversation.input.dock（list slot，session scope）：输入框上方的轻量上下文条。
-// 无项目 → 轻量起始卡（开始探索/整理已有结果/连接现有项目）；
+// 无项目 → 轻量起始卡（开始探索/整理已有结果/新建科研项目）；
 // 有项目 → 当前阶段、待确认、运行/阻塞、最近持久化时间 + 全部技能按钮；
 // 断线 → "连接中断，状态可能过期"（last-known-good 保留）。
 // 焦点纪律：onMouseDown preventDefault——按钮从不抢焦点，选区/IME/Undo 全程保持。
@@ -49,7 +49,7 @@ export function ScienceDock({ inputActions, useInput, services }) {
     setNotice(result.inserted ? { tone: 'info', text: '已在输入框准备技能，请继续补充后发送。' } : { tone: 'info', text: result.message })
   }, [inputActions, input])
 
-  const connectProject = useCallback(async () => {
+  const createProject = useCallback(async () => {
     if (!state.sessionId) { setNotice({ tone: 'error', text: '当前没有会话。' }); return }
     const r = await state.act({
       actionId: 'project.ensure-binding',
@@ -57,11 +57,11 @@ export function ScienceDock({ inputActions, useInput, services }) {
       payload: {},
     })
     if (r.status === 200 && (r.body.kind === 'applied' || r.body.kind === 'already-applied')) {
-      setNotice({ tone: 'info', text: '已连接研究项目。' })
+      setNotice({ tone: 'info', text: '当前会话已绑定科研项目。' })
       void state.refresh()
       return
     }
-    setNotice({ tone: 'error', text: (r.body && r.body.reason) || '连接失败：' + String(r.status) })
+    setNotice({ tone: 'error', text: (r.body && r.body.reason) || '创建科研项目失败：' + String(r.status) })
   }, [state])
 
   const keepFocus = useCallback((event) => event.preventDefault(), [])
@@ -89,8 +89,8 @@ export function ScienceDock({ inputActions, useInput, services }) {
       )}
       {status === 'empty' && (
         <div className="sci-dock-row" style={{ marginBottom: 3 }}>
-          <span className="sci-dock-ctx">尚未建立研究项目——从一句话开始，或整理已有结果。</span>
-          <button type="button" className="sci-dock-btn" onMouseDown={keepFocus} disabled={busy} onClick={connectProject}>连接现有项目</button>
+          <span className="sci-dock-ctx">当前会话尚无科研项目。继续已有课题，可在研究状态中选择“查看全部项目”。</span>
+          <button type="button" className="sci-dock-btn" onMouseDown={keepFocus} disabled={busy} onClick={createProject}>新建科研项目</button>
         </div>
       )}
       {status === 'offline' && (

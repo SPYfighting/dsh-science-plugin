@@ -1,3 +1,5 @@
+import { unmetTaskDependencies, isTerminalTask } from '../../lib/dag.js'
+
 const STAGES = Object.freeze([
   { id: 'explore', label: '研究探索' },
   { id: 'frame', label: '文章结构' },
@@ -9,7 +11,6 @@ const STAGES = Object.freeze([
 
 const LIVE_STATUSES = new Set(['claimed', 'in_progress', 'running', 'working'])
 const DONE_STATUSES = new Set(['completed', 'done'])
-const HIDDEN_STATUSES = new Set(['deleted', 'cancelled'])
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg'])
 
 const asArray = (value) => Array.isArray(value) ? value : []
@@ -38,6 +39,8 @@ function statusLabel(status) {
     working: '工作中',
     running: '运行中',
     completed: '已完成',
+    done: '已完成',
+    deleted: '已删除',
     failed: '失败',
     blocked: '受阻',
     cancelled: '已取消',
@@ -52,17 +55,10 @@ function taskResultIds(task) {
   return ids
 }
 
-function readinessForResult(blueprint, result) {
-  const row = asArray(blueprint?.paperSpine?.results).find((item) => item && item.id === result.id)
-  if (row?.readiness && typeof row.readiness === 'object') return row.readiness
-  const evidence = asArray(result.evidence).filter((item) => item && item.state === 'verified').length
-  const claims = asArray(result.claims).length
-  const manuscript = nonEmpty(result.manuscriptRole) && result.manuscriptRole !== 'excluded'
-  return {
-    scientific: { state: evidence > 0 ? 'in_progress' : 'blocked', blockers: evidence > 0 ? [] : ['尚无可核验证据'] },
-    manuscript: { state: manuscript && claims > 0 ? 'in_progress' : 'blocked', blockers: manuscript && claims > 0 ? [] : ['尚无写作材料'] },
-    submission: { state: 'blocked', blockers: ['投稿准备信息尚未核对'] },
-  }
+function readinessForResult(row) {
+  if (row?.readiness) return row.readiness
+  const unknown = { state: 'unknown', blockers: [] }
+  return { scientific: unknown, manuscript: unknown, submission: unknown }
 }
 
 function memberLiveLabel(status) {
@@ -86,12 +82,15 @@ function memberLiveTone(status) {
 }
 
 function taskBlockers(task, taskById) {
+  if (isTerminalTask(task.status)) return []
   const blockers = []
   if (task.status === 'blocked') blockers.push(nonEmpty(task.blockedReason) || '任务已标记为受阻')
-  for (const id of asArray(task.blockedBy)) {
+  for (const { id, status } of unmetTaskDependencies(task, id => taskById.get(id))) {
     const dependency = taskById.get(id)
-    if (!dependency || !DONE_STATUSES.has(dependency.status)) {
-      blockers.push(dependency ? `等待“${dependency.subject || dependency.id}”完成` : `依赖任务 ${id} 不在当前任务板`)
+    if (!dependency) blockers.push(`依赖任务 ${id} 不在当前任务板`)
+    else {
+      const name = dependency.subject || id
+      blockers.push(isTerminalTask(status) ? `“${name}”${statusLabel(status)}，未成功交付` : `等待“${name}”完成`)
     }
   }
   return [...new Set(blockers)]
@@ -164,8 +163,9 @@ export function stateViewOf(snapshot) {
   const blueprint = snapshot.blueprint && typeof snapshot.blueprint === 'object' ? snapshot.blueprint : {}
   const teamState = snapshot.team && typeof snapshot.team === 'object' ? snapshot.team : {}
   const rawResults = asArray(blueprint.results)
-  const rawTasks = asArray(teamState.tasks).filter((task) => task && !HIDDEN_STATUSES.has(task.status))
-  const taskById = new Map(rawTasks.filter((task) => task.id).map((task) => [task.id, task]))
+  const allTasks = asArray(teamState.tasks).filter((task) => task && task.id)
+  const taskById = new Map(allTasks.map((task) => [task.id, task]))
+  const rawTasks = allTasks.filter((task) => task.status !== 'deleted')
   const figures = railFiguresOf(snapshot)
   const files = asArray(snapshot.files)
 
@@ -186,7 +186,8 @@ export function stateViewOf(snapshot) {
   const resultRows = rawResults.filter((result) => result && typeof result === 'object').map((result) => {
     const linkedTasks = tasks.filter((task) => taskResultIds(task).includes(result.id) || asArray(result.tasks).includes(task.id))
     const linkedFigures = figures.filter((figure) => figure && (figure.resultId === result.id || asArray(figure.resultIds).includes(result.id) || asArray(result.figures).includes(figure.id)))
-    const readiness = readinessForResult(blueprint, result)
+    const assessment = asArray(blueprint?.paperSpine?.results).find((item) => item?.id === result.id)
+    const readiness = readinessForResult(assessment)
     const required = Object.values(readiness).filter((item) => item && item.state === 'blocked').flatMap((item) => asArray(item.blockers))
     const recommended = Object.values(readiness).filter((item) => item && item.state === 'in_progress').flatMap((item) => asArray(item.blockers))
     return {
@@ -195,6 +196,7 @@ export function stateViewOf(snapshot) {
       statusLabel: ({ planned: '计划中', in_progress: '进行中', supported: '已获得支持', negative: '与预期不符', dropped: '不纳入正文' })[result.status] || '状态待核对',
       confirmed: result.confirmed === true,
       readiness,
+      claimAssessments: asArray(assessment?.claimAssessments),
       taskCount: linkedTasks.length,
       completedTaskCount: linkedTasks.filter((task) => task.isComplete).length,
       runningTaskCount: linkedTasks.filter((task) => task.isRunning).length,
@@ -206,7 +208,7 @@ export function stateViewOf(snapshot) {
     }
   })
 
-  const activeTasks = tasks.filter((task) => !task.isComplete)
+  const activeTasks = tasks.filter((task) => !isTerminalTask(task.status))
   const counts = {
     running: tasks.filter((task) => task.isRunning && !task.isBlocked).length,
     waiting: tasks.filter((task) => task.status === 'pending' && !task.isBlocked).length,
@@ -222,7 +224,7 @@ export function stateViewOf(snapshot) {
       liveStatus,
       liveStatusLabel: memberLiveLabel(liveStatus),
       liveStatusTone: memberLiveTone(liveStatus),
-      currentTasks: tasks.filter((task) => task.assignee === member.name && !task.isComplete),
+      currentTasks: tasks.filter((task) => task.assignee === member.name && !isTerminalTask(task.status)),
       lastReport: nonEmpty(member.lastReport) || nonEmpty(member.lastSummary) || '',
     }
   })
@@ -388,11 +390,12 @@ function scopedTeamOf(team, projectId, rootSessionId) {
       childId: asText(member.childId),
       parentSessionId: asText(member.parentSessionId),
     })),
-    tasks: asArray(source.tasks).filter(matches).slice(-20).map((task) => ({
+    tasks: asArray(source.tasks).filter(matches).map((task) => ({
       id: asText(task.id),
       subject: asText(task.subject),
       status: asText(task.status) || 'pending',
       assignee: asText(task.assignee),
+      dependencyPolicy: task.dependencyPolicy || 'finished',
       blockedBy: asArray(task.blockedBy).map(asText).filter(Boolean),
       resultIds: taskResultIds(task),
     })),
@@ -414,7 +417,7 @@ export function projectRawOf(project, { hashes = null, ref = null, team = null, 
     relationship: ref?.relationship || null,
     capabilities: ref?.capabilities || null,
     focus: snapshot.focus || null,
-    blueprint: { ...paper, core, results },
+    blueprint: { ...paper, core, results, paperSpine: project?.paperSpine || paper.paperSpine },
     team: scopedTeamOf(team, project?.projectId || ref?.projectId || null, ref?.rootSessionId || null),
     figures: [],
     artifactIndex: snapshot.artifactIndex || { items: [] },

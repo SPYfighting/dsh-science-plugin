@@ -5,7 +5,7 @@
 // 重要-6 证据方向不参与就绪判定
 import { test, describe, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -106,6 +106,95 @@ describe('复核修复：领域语义', () => {
     // 当前修订的审查仍然生效
     const fresh = { r2: { id: 'r2', sessionId: 'session-x', findings: [{ check: 'blueprint-claim', claim: 'res-1@r2', severity: 'pass', message: '现行通过' }] } }
     assert.equal(reviewCoverageOf(bp, fresh, 'session-x').results[0].severity, 'pass')
+  })
+
+  test('多批次复现：反证重开就绪判断；逐项重审、旧修订、项目确认分别保留', async () => {
+    const { projectScienceOf } = await import('../lib/blueprint.js')
+    const { projectRawOf, stateViewOf } = await import('../client-src/workbench/state-view.js')
+    const { pid, ref } = setup('在基准温度下传感器具有线性响应')
+    const resultId = 'res-1'
+    const first = 'res-1-claim-1'
+    const second = 'res-1-claim-2'
+    let mutation = 0
+    const apply = (command, payload) => {
+      const out = executePaperCommands(store, ref, { mutationId: `multi-${++mutation}`, operations: [{ command, payload }] })
+      assert.equal(out.kind, 'applied', out.reason)
+    }
+    const confirm = () => {
+      const result = snapOf(pid).paper.results[0]
+      apply('paper.confirm-revision', { objectId: resultId, expectedObjectRevision: result.revision, expectedHash: contentHashOf(result) })
+    }
+    const record = (id, direction, file) => apply('paper.record-evidence', {
+      resultId, claimIds: [id], state: 'verified', direction, sourceLocator: file, allowedInterpretation: '仅在标注的温度范围成立',
+    })
+    const runs = []
+    const file = join(home, 'dsh-science', 'reviews.json')
+    const addReview = (token, severity, evidence = '', projectId = pid) => {
+      const now = Date.now() + runs.length
+      runs.push({ id: `run-${runs.length}`, projectId, startedAt: now, finishedAt: now, findings: [
+        { check: 'blueprint-claim', claim: token, severity, evidence, message: '两批测定温度不同，基准温度的判断限于第一批。' },
+      ] })
+      writeFileSync(file, JSON.stringify(runs))
+    }
+    const evaluate = () => {
+      const snapshot = snapOf(pid)
+      const { paperSpine } = projectScienceOf(blueprintViewOf(snapshot), ref, store)
+      const card = stateViewOf(projectRawOf({ projectId: pid, snapshot, paperSpine })).paper.results[0]
+      assert.deepEqual(card.readiness, paperSpine.results[0].readiness)
+      assert.deepEqual(card.claimAssessments, paperSpine.results[0].claimAssessments)
+      return paperSpine.results[0]
+    }
+    confirm()
+    record(first, 'supports', 'batch-1.csv')
+    addReview(`${first}@r1`, 'pass')
+    assert.equal(evaluate().readiness.scientific.state, 'ready')
+    record(first, 'contradicts', 'batch-2.csv')
+    assert.equal(snapOf(pid).paper.results[0].confirmed, true)
+    assert.match(evaluate().readiness.scientific.blockers.join(' '), /batch-2.csv/)
+    addReview(`${first}@r1`, 'pass')
+    assert.equal(evaluate().readiness.scientific.state, 'blocked')
+    const conflict = snapOf(pid).paper.results[0].evidence.at(-1)
+    assert.deepEqual(conflict.claimRevisions, { [first]: 1 })
+    addReview(`${first}@r1`, 'pass', conflict.id, 'another-project')
+    assert.equal(evaluate().readiness.scientific.state, 'blocked')
+    addReview(`${first}@r1`, 'pass', conflict.id)
+    assert.equal(evaluate().readiness.scientific.state, 'ready')
+    assert.equal(evaluate().claimAssessments[0].conflictReviewed, true)
+    apply('paper.record-claim', { resultId, text: '跨温度重复测量具有相同精度' })
+    confirm()
+    addReview(`${second}@r1`, 'fail')
+    addReview(`${first}@r1`, 'pass', conflict.id)
+    let row = evaluate()
+    assert.equal(row.claimAssessments[1].review.severity, 'fail')
+    assert.deepEqual(row.claimAssessments[1].evidenceIds, [])
+    addReview(`${second}@r1`, 'pass')
+    assert.equal(evaluate().readiness.scientific.state, 'blocked')
+    record(second, 'supports', 'batch-3.csv')
+    assert.equal(evaluate().readiness.scientific.state, 'ready')
+    const saved = readFileSync(file, 'utf8')
+    apply('paper.update-result', { resultId, claim: '在全部温度条件下传感器具有线性响应' })
+    confirm()
+    row = evaluate()
+    assert.equal(row.readiness.scientific.state, 'blocked')
+    assert.equal(row.claimAssessments[0].review.severity, null)
+    assert.equal(row.claimAssessments[1].review.severity, 'pass')
+    assert.deepEqual(row.claimAssessments[0].historicalEvidenceIds, ['res-1-ev-1', 'res-1-ev-2'])
+    assert.deepEqual(row.claimAssessments[0].evidenceIds, [])
+    assert.equal(readFileSync(file, 'utf8'), saved)
+  })
+
+  test('旧项目未记录证据修订时，首版仍可使用，已改写的主张保留历史关联', () => {
+    const old = { id: 'res-1', claim: '原表述', confirmed: true, claims: [{ id: 'a', text: '原表述', revision: 1 }],
+      evidence: [{ id: 'old', claimIds: ['a'], direction: 'supports', state: 'verified', sourceLocator: 'old.csv', allowedInterpretation: '原表述' }] }
+    const read = () => paperSpineViewOf({ results: [old] }, null, null, reviewCoverageOf({ results: [old] }, [
+      { id: 'original', findings: [{ check: 'blueprint-claim', claim: 'a@r1', severity: 'pass' }] },
+    ])).results[0]
+    assert.equal(read().readiness.scientific.state, 'ready')
+    old.claim = '修订表述'
+    old.claims[0] = { id: 'a', text: old.claim, revision: 2 }
+    assert.equal(read().readiness.scientific.state, 'blocked')
+    assert.deepEqual(read().claimAssessments[0].historicalEvidenceIds, ['old'])
+    assert.deepEqual(read().claimAssessments[0].evidenceIds, [])
   })
 
   test('重要-6：只有反向证据时 scientific 不就绪', () => {

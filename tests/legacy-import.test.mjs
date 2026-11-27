@@ -34,7 +34,7 @@ const LEGACY = {
       claims: [{ id: 'res-1-claim-1', text: '旧主张 A', revision: 2 }],
       evidence: [{ id: 'res-1-ev-1', claimIds: ['res-1-claim-1'], direction: 'supports', state: 'verified', sourceLocator: 'a.csv#L1', allowedInterpretation: 'ok' }],
       references: [{ doi: '10.1/legacy', title: 'Legacy Ref', usedAs: 'method', verified: true }],
-      tasks: ['task-1'], figures: ['fig-1'], notes: '旧备注',
+      tasks: Array.from({ length: 59 }, (_, i) => 'task-' + (i + 1)), figures: ['fig-1'], notes: '旧备注',
     },
     { id: 'res-2', title: '旧结果二', claim: '旧主张 B', status: 'planned', confirmed: false },
   ],
@@ -58,7 +58,7 @@ describe('T5.1 旧数据只读导入', () => {
     assert.equal(r1.evidence.length, 1)
     assert.equal(r1.evidence[0].sourceLocator, 'a.csv#L1')
     assert.equal(r1.references[0].doi, '10.1/legacy')
-    assert.deepEqual(r1.tasks, ['task-1'])
+    assert.deepEqual(r1.tasks, LEGACY.results[0].tasks)
     assert.deepEqual(r1.figures, ['fig-1'])
     assert.equal(r1.notes, '旧备注')
     // 旧确认保留为 legacy-migration 凭据（读模型判定为当前）
